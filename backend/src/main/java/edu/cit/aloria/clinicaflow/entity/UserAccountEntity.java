@@ -1,30 +1,30 @@
 package edu.cit.aloria.clinicaflow.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "user_account")
+@Table(name = "UserAccount")
 public class UserAccountEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private int accountID;
 
-    @Column(nullable = false, unique = true)
-    private String username;
+    @Column(name = "first_name", nullable = false)
+    private String firstName;
 
-    @Column(nullable = false)
+    @Column(name = "last_name", nullable = false)
+    private String lastName;
+
+    @Column(nullable = false, unique = true)
+    private String email; 
+    @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
     @Column(nullable = false)
     private String role;
 
-    @OneToOne(mappedBy = "userAccount", cascade = CascadeType.ALL)
-    @JsonIgnore
-    // private MedicalStaffEntity medicalStaff;
-
+    // Getters and Setters
     public int getAccountID() {
         return accountID;
     }
@@ -33,12 +33,28 @@ public class UserAccountEntity {
         this.accountID = accountID;
     }
 
-    public String getUsername() {
-        return username;
+    public String getFirstName() {
+        return firstName;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setFirstName(String firstName) {
+        this.firstName = firstName;
+    }
+
+    public String getLastName() {
+        return lastName;
+    }
+
+    public void setLastName(String lastName) {
+        this.lastName = lastName;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPasswordHash() {
@@ -56,14 +72,4 @@ public class UserAccountEntity {
     public void setRole(String role) {
         this.role = role;
     }
-
-    /*
-     * public MedicalStaffEntity getMedicalStaff() {
-     * return medicalStaff;
-     * }
-     * 
-     * public void setMedicalStaff(MedicalStaffEntity medicalStaff) {
-     * this.medicalStaff = medicalStaff;
-     * }
-     */
 }
