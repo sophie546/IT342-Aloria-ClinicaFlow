@@ -21,8 +21,8 @@ function Login() {
   const [touched, setTouched] = useState({});
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [loginError, setLoginError] = useState('');
-  const [loginSuccess, setLoginSuccess] = useState(false); // New state for success
-  const [successMessage, setSuccessMessage] = useState(''); // New state for success message
+  const [loginSuccess, setLoginSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
   // Forgot Password States
@@ -34,6 +34,9 @@ function Login() {
 
   // Success Modal State
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+
+  // Google Login Loading State
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Fade transition
   const [visible, setVisible] = useState(false);
@@ -133,14 +136,10 @@ function Login() {
         });
         
         if (response.success) {
-          // Set success state
           setLoginSuccess(true);
           setSuccessMessage('Login successful! Redirecting to dashboard...');
-          
-          // Show success modal
           setShowSuccessModal(true);
           
-          // Redirect after 2 seconds
           setTimeout(() => {
             setShowSuccessModal(false);
             goTo('/dashboard');
@@ -162,6 +161,13 @@ function Login() {
         setIsLoading(false);
       }
     }
+  };
+
+  // Handle Google Login
+  const handleGoogleLogin = () => {
+    setGoogleLoading(true);
+    // Redirect to Google OAuth2 endpoint
+    window.location.href = 'http://localhost:8080/oauth2/authorization/google';
   };
 
   // Forgot Password Handlers
@@ -585,6 +591,75 @@ function Login() {
               </button>
             </div>
           </form>
+
+          {/* ===== GOOGLE LOGIN SECTION - ADD THIS ===== */}
+          <div style={{
+            marginTop: '1.5rem',
+            position: 'relative',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '1rem',
+              marginBottom: '1rem'
+            }}>
+              <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #ddd' }} />
+              <span style={{ fontSize: '0.85rem', color: '#999', fontWeight: '500' }}>
+                OR CONTINUE WITH
+              </span>
+              <hr style={{ flex: 1, border: 'none', borderTop: '1px solid #ddd' }} />
+            </div>
+
+            <button
+              onClick={handleGoogleLogin}
+              disabled={googleLoading || isLoading}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                backgroundColor: 'white',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                color: '#333',
+                cursor: (googleLoading || isLoading) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                transition: 'background-color 0.2s, border-color 0.2s',
+                opacity: (googleLoading || isLoading) ? 0.6 : 1,
+                fontFamily: "'Zen Kaku Gothic Antique', sans-serif"
+              }}
+              onMouseEnter={(e) => !googleLoading && !isLoading && (e.currentTarget.style.backgroundColor = '#f8f8f8')}
+              onMouseLeave={(e) => !googleLoading && !isLoading && (e.currentTarget.style.backgroundColor = 'white')}
+            >
+              {googleLoading ? (
+                <>
+                  <span style={{
+                    width: '18px',
+                    height: '18px',
+                    border: '2px solid #1e0a4e',
+                    borderTopColor: 'transparent',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></span>
+                  Redirecting to Google...
+                </>
+              ) : (
+                <>
+                  <img 
+                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+                    alt="Google logo"
+                    style={{ width: '20px', height: '20px' }}
+                  />
+                  Sign in with Google
+                </>
+              )}
+            </button>
+          </div>
+          {/* ===== END GOOGLE LOGIN SECTION ===== */}
 
           <p style={{ marginTop: '1.6rem', fontSize: '0.85rem', color: '#888', textAlign: 'center' }}>
             No Account yet?{' '}
