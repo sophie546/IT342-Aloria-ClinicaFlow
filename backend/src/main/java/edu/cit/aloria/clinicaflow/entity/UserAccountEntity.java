@@ -9,6 +9,7 @@ public class UserAccountEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "accountid")
     private int accountID;
 
     @Column(name = "first_name", nullable = false)
@@ -20,20 +21,29 @@ public class UserAccountEntity {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(nullable = false)
     private String role;
 
-    // NEW FIELDS FOR GOOGLE OAUTH2
-    private String picture;  // Google profile picture
+    @Column(name = "picture")
+    private String picture;
     
-    private String provider; // "GOOGLE" or "LOCAL"
+    @Column(name = "provider")
+    private String provider;
     
+    @Column(name = "supabase_user_id", unique = true)
+    private String supabaseUserId;
+    
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = false;
+    
+    @Column(name = "created_date")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdDate;
     
+    @Column(name = "last_login")
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastLogin;
 
@@ -48,6 +58,7 @@ public class UserAccountEntity {
         this.provider = provider;
         this.createdDate = new Date();
         this.lastLogin = new Date();
+        this.emailVerified = false;
     }
 
     // Getters and Setters
@@ -99,7 +110,6 @@ public class UserAccountEntity {
         this.role = role;
     }
 
-    // NEW Getters and Setters
     public String getPicture() {
         return picture;
     }
@@ -114,6 +124,22 @@ public class UserAccountEntity {
 
     public void setProvider(String provider) {
         this.provider = provider;
+    }
+    
+    public String getSupabaseUserId() {
+        return supabaseUserId;
+    }
+
+    public void setSupabaseUserId(String supabaseUserId) {
+        this.supabaseUserId = supabaseUserId;
+    }
+    
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+    
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
     }
 
     public Date getCreatedDate() {

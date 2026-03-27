@@ -20,6 +20,7 @@
 		<maven.compiler.target>17</maven.compiler.target>
 		<lombok.version>1.18.30</lombok.version>
 		<jjwt.version>0.11.5</jjwt.version>
+		<gson.version>2.10.1</gson.version>
 	</properties>
 	
 	<dependencies>
@@ -50,6 +51,12 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
+		<!-- WebClient for Supabase API calls -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
 		<!-- Database -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
@@ -65,7 +72,7 @@
 			<optional>true</optional>
 		</dependency>
 
-		<!-- JWT Dependencies - NEW -->
+		<!-- JWT Dependencies -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -84,6 +91,13 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Gson for JSON processing -->
+		<dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+			<version>${gson.version}</version>
+		</dependency>
+
 		<!-- Testing -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -94,6 +108,13 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+		
+		<!-- Reactor test for WebClient -->
+		<dependency>
+			<groupId>io.projectreactor</groupId>
+			<artifactId>reactor-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

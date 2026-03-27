@@ -34,10 +34,10 @@ public class WebSecurityConfig {
                     .userService(customOAuth2UserService)
                 )
                 .successHandler((request, response, authentication) -> {
-                    response.sendRedirect("http://localhost:5174/oauth2/redirect");
+                    response.sendRedirect("http://localhost:5173/oauth2/redirect");
                 })
                 .failureHandler((request, response, exception) -> {
-                    response.sendRedirect("http://localhost:5174/login?error=true");
+                    response.sendRedirect("http://localhost:5173/login?error=true");
                 })
             );
         
@@ -50,7 +50,9 @@ public class WebSecurityConfig {
         // Fixed: removed duplicate entry
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:3000", 
+            "http://localhost:5173",
             "http://localhost:5174"
+
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));
