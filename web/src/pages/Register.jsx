@@ -31,6 +31,13 @@ function Register() {
   const [isLoading, setIsLoading] = useState(false); // Loading state
   const [showSuccessModal, setShowSuccessModal] = useState(false); // Success modal
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // New states for email verification
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
+  const [countdown, setCountdown] = useState(10);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [isResending, setIsResending] = useState(false);
 
   // ── Fade transition ──
   const [visible, setVisible] = useState(false);
@@ -40,6 +47,27 @@ function Register() {
     const t = setTimeout(() => setVisible(true), 20);
     return () => clearTimeout(t);
   }, []);
+
+  // Countdown timer for auto-redirect
+  useEffect(() => {
+    let timer;
+    if (showVerificationModal && countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    } else if (showVerificationModal && countdown === 0) {
+      // Auto redirect to login after countdown
+      handleCloseVerificationAndRedirect();
+    }
+    return () => clearTimeout(timer);
+  }, [showVerificationModal, countdown]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    let timer;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
 
   const goTo = (path) => {
     setVisible(false);
@@ -207,6 +235,72 @@ function Register() {
     }
   };
 
+  // Handle resend verification email
+  const handleResendVerification = async () => {
+    if (resendCooldown > 0 || isResending) return;
+    
+    setIsResending(true);
+    try {
+      const response = await authService.resendVerificationEmail(verificationEmail);
+      
+      if (response.success) {
+        // Reset cooldown timer (60 seconds)
+        setResendCooldown(60);
+        // Show success message inside modal
+        const resendMessage = document.createElement('div');
+        resendMessage.className = 'resend-success-message';
+        resendMessage.innerHTML = '✓ Verification email resent successfully!';
+        resendMessage.style.cssText = `
+          position: fixed;
+          bottom: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: #4CAF50;
+          color: white;
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-size: 0.9rem;
+          z-index: 2001;
+          animation: slideUp 0.3s ease;
+        `;
+        document.body.appendChild(resendMessage);
+        setTimeout(() => resendMessage.remove(), 3000);
+      } else {
+        throw new Error(response.message || 'Failed to resend verification email');
+      }
+    } catch (error) {
+      console.error('Resend error:', error);
+      const errorMessage = document.createElement('div');
+      errorMessage.className = 'resend-error-message';
+      errorMessage.innerHTML = '⚠️ Failed to resend verification email. Please try again later.';
+      errorMessage.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background-color: #f44336;
+        color: white;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        z-index: 2001;
+        animation: slideUp 0.3s ease;
+      `;
+      document.body.appendChild(errorMessage);
+      setTimeout(() => errorMessage.remove(), 3000);
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  const handleCloseVerificationAndRedirect = () => {
+    setShowVerificationModal(false);
+    setCountdown(10);
+    setVerificationEmail('');
+    setResendCooldown(0);
+    goTo('/login');
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormSubmitted(true);
@@ -234,26 +328,45 @@ function Register() {
         console.log('Registration response:', response);
         
         if (response.success) {
-          // Registration successful - show success modal
-          setSuccessMessage('Your account has been created successfully!');
-          setShowSuccessModal(true);
-          
-          // Clear form
-          setFormData({
-            firstName: '',
-            lastName: '',
-            email: '',
-            password: '',
-            confirmPassword: '',
-            role: ''
-          });
-          setAgreeTerms(false);
-          
-          // Auto redirect to login after 3 seconds
-          setTimeout(() => {
-            setShowSuccessModal(false);
-            goTo('/login');
-          }, 3000);
+          // Check if email verification is required (Supabase default behavior)
+          if (response.data?.requiresEmailVerification || response.message?.includes('verification')) {
+            // Show email verification modal instead of success modal
+            setVerificationEmail(formData.email);
+            setShowVerificationModal(true);
+            setCountdown(10);
+            
+            // Clear form
+            setFormData({
+              firstName: '',
+              lastName: '',
+              email: '',
+              password: '',
+              confirmPassword: '',
+              role: ''
+            });
+            setAgreeTerms(false);
+          } else {
+            // Registration successful without email verification - show success modal
+            setSuccessMessage('Your account has been created successfully!');
+            setShowSuccessModal(true);
+            
+            // Clear form
+            setFormData({
+              firstName: '',
+              lastName: '',
+              email: '',
+              password: '',
+              confirmPassword: '',
+              role: ''
+            });
+            setAgreeTerms(false);
+            
+            // Auto redirect to login after 3 seconds
+            setTimeout(() => {
+              setShowSuccessModal(false);
+              goTo('/login');
+            }, 3000);
+          }
         } else {
           // Registration failed
           setRegistrationError(response.message || 'Registration failed. Please try again.');
@@ -265,8 +378,13 @@ function Register() {
         if (error.message === 'Network Error') {
           setRegistrationError('Cannot connect to server. Please make sure the backend is running.');
         } else if (error.response) {
-          // Server responded with error
-          setRegistrationError(error.response.data?.message || 'Server error occurred');
+          // Check if the error is related to email already registered but not verified
+          if (error.response.data?.message?.includes('already registered') || 
+              error.response.data?.message?.includes('already exists')) {
+            setRegistrationError('This email is already registered. Please login or reset your password.');
+          } else {
+            setRegistrationError(error.response.data?.message || 'Server error occurred');
+          }
         } else {
           setRegistrationError('An error occurred during registration. Please try again.');
         }
@@ -670,7 +788,185 @@ function Register() {
         </div>
       </div>
 
-      {/* Success Modal */}
+      {/* Email Verification Modal */}
+      {showVerificationModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 2000,
+          fontFamily: "'Zen Kaku Gothic Antique', sans-serif",
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '450px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.2)',
+            textAlign: 'center',
+            animation: 'slideUp 0.3s ease'
+          }}>
+            <div style={{
+              width: '70px',
+              height: '70px',
+              backgroundColor: '#FF9800',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 1.5rem'
+            }}>
+              <svg width="35" height="35" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                <polyline points="22,6 12,13 2,6" />
+              </svg>
+            </div>
+            
+            <h2 style={{
+              fontSize: '1.5rem',
+              fontWeight: '900',
+              color: '#1e0a4e',
+              marginBottom: '1rem'
+            }}>
+              Verify Your Email Address
+            </h2>
+            
+            <p style={{
+              fontSize: '0.95rem',
+              color: '#666',
+              marginBottom: '1rem',
+              lineHeight: 1.6
+            }}>
+              We've sent a verification link to:
+            </p>
+            
+            <p style={{
+              fontSize: '1rem',
+              fontWeight: '600',
+              color: '#1e0a4e',
+              marginBottom: '1.5rem',
+              wordBreak: 'break-all'
+            }}>
+              {verificationEmail}
+            </p>
+            
+            <div style={{
+              backgroundColor: '#FFF3E0',
+              padding: '1rem',
+              borderRadius: '8px',
+              marginBottom: '1.5rem',
+              textAlign: 'left'
+            }}>
+              <p style={{
+                fontSize: '0.85rem',
+                color: '#E65100',
+                margin: 0,
+                display: 'flex',
+                alignItems: 'start',
+                gap: '0.5rem'
+              }}>
+                <span style={{ fontSize: '1.2rem' }}>📧</span>
+                <span>
+                  <strong>Important:</strong> Please check your email inbox and click the verification link to activate your account. 
+                  You won't be able to log in until your email is verified.
+                </span>
+              </p>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              gap: '1rem',
+              marginBottom: '1rem',
+              flexDirection: 'column'
+            }}>
+              <button
+                onClick={handleResendVerification}
+                disabled={resendCooldown > 0 || isResending}
+                style={{
+                  padding: '0.75rem',
+                  backgroundColor: resendCooldown > 0 || isResending ? '#ccc' : '#1e0a4e',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor: resendCooldown > 0 || isResending ? 'not-allowed' : 'pointer',
+                  fontFamily: "'Zen Kaku Gothic Antique', sans-serif",
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => !resendCooldown && !isResending && (e.currentTarget.style.backgroundColor = '#2d1258')}
+                onMouseLeave={(e) => !resendCooldown && !isResending && (e.currentTarget.style.backgroundColor = '#1e0a4e')}
+              >
+                {isResending ? (
+                  <>
+                    <span style={{
+                      display: 'inline-block',
+                      width: '14px',
+                      height: '14px',
+                      border: '2px solid white',
+                      borderTopColor: 'transparent',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite',
+                      marginRight: '0.5rem',
+                      verticalAlign: 'middle'
+                    }}></span>
+                    Sending...
+                  </>
+                ) : resendCooldown > 0 ? (
+                  `Resend available in ${resendCooldown}s`
+                ) : (
+                  'Resend Verification Email'
+                )}
+              </button>
+              
+              <button
+                onClick={handleCloseVerificationAndRedirect}
+                style={{
+                  padding: '0.75rem',
+                  backgroundColor: 'transparent',
+                  color: '#1e0a4e',
+                  border: '2px solid #1e0a4e',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontFamily: "'Zen Kaku Gothic Antique', sans-serif",
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#1e0a4e';
+                  e.currentTarget.style.color = 'white';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#1e0a4e';
+                }}
+              >
+                Go to Login {countdown > 0 && `(${countdown}s)`}
+              </button>
+            </div>
+            
+            <p style={{
+              fontSize: '0.8rem',
+              color: '#999',
+              marginTop: '1rem',
+              lineHeight: 1.4
+            }}>
+              Didn't receive the email? Check your spam folder or click "Resend" above.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Success Modal (for registration without email verification) */}
       {showSuccessModal && (
         <div style={{
           position: 'fixed',
