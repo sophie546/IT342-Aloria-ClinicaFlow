@@ -142,7 +142,7 @@ function Login() {
           
           setTimeout(() => {
             setShowSuccessModal(false);
-            goTo('/dashboard');
+            goTo('/patient-queue');
           }, 2000);
         } else {
           setLoginError(response.message || 'Invalid email or password');
