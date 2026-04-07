@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import logo from '../assets/logo.png'; // Adjust the path based on where your logo.png is located
 
 const menuItems = [
   {
@@ -22,7 +23,7 @@ const menuItems = [
   },
   {
     text: 'Medical Staff',
-    path: '/staff',
+    path: '/medical-staff',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
@@ -31,7 +32,7 @@ const menuItems = [
   },
   {
     text: 'Appointments',
-    path: '/appointments',
+    path: '/appointment',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
         <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
@@ -52,6 +53,13 @@ const menuItems = [
 export default function Sidebar({ user, onLogout }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [isRotating, setIsRotating] = React.useState(false);
+
+  const handleSettingsClick = () => {
+    setIsRotating(true);
+    setTimeout(() => setIsRotating(false), 500);
+    // Add your settings logic here
+  };
 
   return (
     <div
@@ -69,7 +77,7 @@ export default function Sidebar({ user, onLogout }) {
         flexShrink: 0,
       }}
     >
-      {/* Logo */}
+      {/* Logo Section */}
       <div
         style={{
           height: 107,
@@ -91,17 +99,49 @@ export default function Sidebar({ user, onLogout }) {
               alignItems: 'center',
               justifyContent: 'center',
               flexShrink: 0,
+              overflow: 'hidden',
+              transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(255,255,255,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = 'none';
             }}
           >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#190051">
-              <path d="M19 3H5c-1.1 0-1.99.9-1.99 2L3 19c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z"/>
-            </svg>
+            <img 
+              src={logo} 
+              alt="ClinicaFlow Logo" 
+              style={{
+                width: '80%',
+                height: '80%',
+                objectFit: 'contain',
+                transition: 'transform 0.3s ease',
+              }}
+            />
           </div>
           <div>
-            <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, color: '#fff', lineHeight: '24px' }}>
+            <div style={{ 
+              fontFamily: "'Poppins', sans-serif", 
+              fontSize: 20, 
+              fontWeight: 700, 
+              color: '#fff', 
+              lineHeight: '24px',
+              transition: 'transform 0.3s ease',
+            }}>
               ClinicaFlow
             </div>
-            <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.7)', lineHeight: '16px', marginTop: 2 }}>
+            <div style={{ 
+              fontFamily: "'Poppins', sans-serif", 
+              fontSize: 11, 
+              fontWeight: 400, 
+              color: 'rgba(255,255,255,0.7)', 
+              lineHeight: '16px', 
+              marginTop: 2,
+            }}>
               Medical Management
             </div>
           </div>
@@ -133,21 +173,58 @@ export default function Sidebar({ user, onLogout }) {
                 fontFamily: "'Poppins', sans-serif",
                 fontSize: 13,
                 fontWeight: 600,
-                transition: 'all 0.15s',
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                transform: isActive ? 'translateX(0)' : 'translateX(0)',
+                position: 'relative',
+                overflow: 'hidden',
               }}
               onMouseEnter={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                if (!isActive) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+                  e.currentTarget.style.transform = 'translateX(5px)';
+                }
               }}
               onMouseLeave={(e) => {
-                if (!isActive) e.currentTarget.style.background = 'transparent';
+                if (!isActive) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.transform = 'translateX(0)';
+                }
               }}
             >
-              <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+              {/* Ripple effect on click */}
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  width: '100%',
+                  height: '100%',
+                  background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%)',
+                  transform: 'translate(-50%, -50%) scale(0)',
+                  transition: 'transform 0.5s ease',
+                  pointerEvents: 'none',
+                }}
+                className="ripple"
+              />
+              <span style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                flexShrink: 0,
+                transition: 'transform 0.2s ease',
+              }}>
                 {item.icon}
               </span>
               <span style={{ flex: 1, textAlign: 'left' }}>{item.text}</span>
               {isActive && (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <svg 
+                  width="18" 
+                  height="18" 
+                  viewBox="0 0 24 24" 
+                  fill="currentColor"
+                  style={{
+                    animation: 'slideIn 0.3s ease',
+                  }}
+                >
                   <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
                 </svg>
               )}
@@ -169,6 +246,16 @@ export default function Sidebar({ user, onLogout }) {
             padding: '0 23px',
             gap: 14,
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+            cursor: 'pointer',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)';
+            e.currentTarget.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
           }}
         >
           <div
@@ -186,6 +273,13 @@ export default function Sidebar({ user, onLogout }) {
               color: '#fff',
               flexShrink: 0,
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
+              transition: 'transform 0.3s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
             }}
           >
             DS
@@ -199,26 +293,69 @@ export default function Sidebar({ user, onLogout }) {
             </div>
           </div>
           <button
+            onClick={handleSettingsClick}
             style={{ 
               background: 'none', 
               border: 'none', 
               cursor: 'pointer', 
-              padding: 4, 
+              padding: 8, 
               color: '#190051', 
               display: 'flex', 
               alignItems: 'center',
-              borderRadius: 6,
-              transition: 'background 0.15s',
+              borderRadius: 8,
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative',
+              overflow: 'hidden',
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(25,0,81,0.08)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(25,0,81,0.1)';
+              e.currentTarget.style.transform = 'rotate(90deg)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'none';
+              e.currentTarget.style.transform = 'rotate(0deg)';
+            }}
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor">
+            <svg 
+              width="17" 
+              height="17" 
+              viewBox="0 0 24 24" 
+              fill="currentColor"
+              style={{
+                transition: 'transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+                transform: isRotating ? 'rotate(360deg)' : 'rotate(0deg)',
+              }}
+            >
               <path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/>
             </svg>
           </button>
         </div>
       </div>
+
+      {/* Add CSS animations */}
+      <style jsx>{`
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        @keyframes ripple {
+          to {
+            transform: translate(-50%, -50%) scale(4);
+            opacity: 0;
+          }
+        }
+        
+        .ripple {
+          animation: ripple 0.5s ease-out;
+        }
+      `}</style>
     </div>
   );
 }

@@ -4,6 +4,10 @@ import Register from './pages/Register';
 import OAuth2Redirect from './pages/OAuth2Redirect';
 import Dashboard from './pages/Dashboard';
 import PatientQueue from './pages/PatientQueue'; 
+import Patients from './pages/Patients';
+import MedicalStaff from './pages/MedicalStaff';
+import Appointment from './pages/Appointment';
+import MedicalHistory from './pages/MedicalHistory';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -20,10 +24,38 @@ function App() {
           </ProtectedRoute>
         } />
         
-        {/* Add Patient Queue route */}
+        {/* Patient Queue Route */}
         <Route path="/patient-queue" element={
           <ProtectedRoute>
             <PatientQueue />
+          </ProtectedRoute>
+        } />
+        
+        {/* Patients Route */}
+        <Route path="/patients" element={
+          <ProtectedRoute>
+            <Patients />
+          </ProtectedRoute>
+        } />
+        
+        {/* Medical Staff Route */}
+        <Route path="/medical-staff" element={
+          <ProtectedRoute>
+            <MedicalStaff />
+          </ProtectedRoute>
+        } />
+        
+        {/* Appointment Route */}
+        <Route path="/appointment" element={
+          <ProtectedRoute>
+            <Appointment />
+          </ProtectedRoute>
+        } />
+        
+        {/* Medical History Route */}
+        <Route path="/medical-history" element={
+          <ProtectedRoute>
+            <MedicalHistory />
           </ProtectedRoute>
         } />
         
