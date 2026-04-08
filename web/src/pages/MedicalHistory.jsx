@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import API from '../services/api';
+import { staffService } from '../services/staffService';
 
 /* ── Google Fonts ── */
 const fontLink = document.createElement('link');
@@ -32,21 +34,12 @@ const C = {
   redBg: 'rgba(239,68,68,0.1)',
 };
 
-/* ── Mock Consultation Data ── */
-const INITIAL_CONSULTATIONS = [
-  { id: 1, patientName: 'Maria Santos', age: 45, dateTime: '2025-01-05 09:30 AM', doctor: 'Dr. Maria Cruz', diagnosis: 'Hypertension - Stage 2', details: 'Blood pressure elevated. Prescribed Amlodipine 5mg daily. Follow up in 2 weeks.' },
-  { id: 2, patientName: 'Juan Dela Cruz', age: 32, dateTime: '2025-01-05 09:30 AM', doctor: 'Dr. Roberto Santos', diagnosis: 'Acute Asthma Exacerbation', details: 'Wheezing and shortness of breath. Prescribed Albuterol inhaler. Recommended follow up.' },
-  { id: 3, patientName: 'Ana Reyes', age: 28, dateTime: '2025-01-05 09:30 AM', doctor: 'Dr. Maria Cruz', diagnosis: 'Migraine with Aura', details: 'Severe headache with visual disturbances. Prescribed Sumatriptan. Rest advised.' },
-  { id: 4, patientName: 'Jake Sim', age: 23, dateTime: '2025-01-05 09:30 AM', doctor: 'Dr. Roberto Santos', diagnosis: 'Fever', details: 'Temperature 38.5°C. Prescribed Paracetamol. Increase fluid intake.' },
-  { id: 5, patientName: 'Jungwon Yang', age: 21, dateTime: '2025-01-05 09:30 AM', doctor: 'Dr. Maria Cruz', diagnosis: 'Fever', details: 'Mild fever and body aches. Rest and hydration recommended.' },
-];
-
 /* ── Icons ── */
 const Icons = {
-    History: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff">
-        <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
-        </svg>
+  History: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff">
+      <path d="M13 3c-4.97 0-9 4.03-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42C8.27 19.99 10.51 21 13 21c4.97 0 9-4.03 9-9s-4.03-9-9-9zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/>
+    </svg>
   ),
   Calendar: () => (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={C.purple} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -90,18 +83,24 @@ const Icons = {
       <line x1="6" y1="20" x2="6" y2="14" />
     </svg>
   ),
+  Edit: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3l4 4-7 7H10v-4l7-7z" />
+      <path d="M4 20h16" />
+    </svg>
+  ),
 };
 
 /* ── Diagnosis Badge ── */
 function DiagnosisBadge({ diagnosis }) {
   let color, bgColor;
-  if (diagnosis.includes('Hypertension')) {
+  if (diagnosis?.toLowerCase().includes('hypertension')) {
     color = C.red;
     bgColor = C.redBg;
-  } else if (diagnosis.includes('Asthma')) {
+  } else if (diagnosis?.toLowerCase().includes('asthma')) {
     color = C.purple;
     bgColor = C.purpleBg;
-  } else if (diagnosis.includes('Migraine')) {
+  } else if (diagnosis?.toLowerCase().includes('migraine')) {
     color = C.orange;
     bgColor = C.orangeBg;
   } else {
@@ -321,20 +320,41 @@ function DiagnosisFilter({ value, onChange, diagnoses }) {
 
 /* ── Main Component ── */
 export default function MedicalHistory() {
-  const [consultations, setConsultations] = useState(INITIAL_CONSULTATIONS);
+  const [consultations, setConsultations] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [doctorFilter, setDoctorFilter] = useState('All Doctors');
   const [diagnosisFilter, setDiagnosisFilter] = useState('All Diagnoses');
   const [selectedConsultation, setSelectedConsultation] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState({});
+
+  // Fetch all consultations from backend
+  const fetchConsultations = async () => {
+    try {
+      const response = await API.get('/api/consultations/all');
+      setConsultations(response.data || []);
+    } catch (error) {
+      console.error('Error fetching consultations:', error);
+      setConsultations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchConsultations();
+  }, []);
 
   // Extract unique doctors and diagnoses for filters
-  const uniqueDoctors = [...new Set(consultations.map(c => c.doctor))];
-  const uniqueDiagnoses = [...new Set(consultations.map(c => c.diagnosis))];
-  
+  const uniqueDoctors = [...new Set(consultations.map(c => c.doctorName).filter(Boolean))];
+  const uniqueDiagnoses = [...new Set(consultations.map(c => c.diagnosis).filter(Boolean))];
+
   // Calculate stats
   const uniquePatients = new Map(consultations.map(c => [c.patientName, c])).size;
   const thisWeekCount = consultations.filter(c => {
-    const consultDate = new Date(c.dateTime.split(' ')[0]);
+    if (!c.consultationDate) return false;
+    const consultDate = new Date(c.consultationDate);
     const today = new Date();
     const weekAgo = new Date();
     weekAgo.setDate(today.getDate() - 7);
@@ -349,22 +369,89 @@ export default function MedicalHistory() {
 
   // Apply filters
   const filteredConsultations = consultations.filter(consultation => {
-    const matchesSearch = consultation.patientName.toLowerCase().includes(search.toLowerCase()) ||
-      consultation.doctor.toLowerCase().includes(search.toLowerCase()) ||
-      consultation.diagnosis.toLowerCase().includes(search.toLowerCase());
-    const matchesDoctor = doctorFilter === 'All Doctors' || consultation.doctor === doctorFilter;
+    const matchesSearch = (consultation.patientName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (consultation.doctorName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (consultation.diagnosis || '').toLowerCase().includes(search.toLowerCase());
+    const matchesDoctor = doctorFilter === 'All Doctors' || consultation.doctorName === doctorFilter;
     const matchesDiagnosis = diagnosisFilter === 'All Diagnoses' || consultation.diagnosis === diagnosisFilter;
     return matchesSearch && matchesDoctor && matchesDiagnosis;
   });
 
-  const handleViewDetails = (consultation) => {
-    setSelectedConsultation(consultation);
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  const handleDeleteConsultation = (consultationToDelete) => {
-    setConsultations(consultations.filter(c => c.id !== consultationToDelete.id));
-    setSelectedConsultation(null);
+  const handleViewDetails = (consultation) => {
+    setSelectedConsultation(consultation);
+    setIsEditing(false);
   };
+
+  const handleEditClick = () => {
+    setIsEditing(true);
+    setEditFormData({
+      patientName: selectedConsultation.patientName || '',
+      age: selectedConsultation.age || '',
+      gender: selectedConsultation.gender || '',
+      doctorName: selectedConsultation.doctorName || '',
+      consultationDate: selectedConsultation.consultationDate || '',
+      symptoms: selectedConsultation.symptoms || '',
+      diagnosis: selectedConsultation.diagnosis || '',
+      prescription: selectedConsultation.prescription || '',
+      remarks: selectedConsultation.remarks || ''
+    });
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSaveEdit = async () => {
+    try {
+      await API.put(`/api/consultations/update/${selectedConsultation.consultationId}`, editFormData);
+      await fetchConsultations();
+      setIsEditing(false);
+      setSelectedConsultation(null);
+      alert('Consultation updated successfully!');
+    } catch (error) {
+      console.error('Error updating consultation:', error);
+      alert('Failed to update consultation');
+    }
+  };
+
+  const handleDeleteConsultation = async (consultation) => {
+    if (window.confirm(`Are you sure you want to delete consultation for ${consultation.patientName}?`)) {
+      try {
+        await API.delete(`/api/consultations/delete/${consultation.consultationId}`);
+        await fetchConsultations();
+        setSelectedConsultation(null);
+        alert('Consultation deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting consultation:', error);
+        alert('Failed to delete consultation');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div>Loading medical history...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -473,13 +560,11 @@ export default function MedicalHistory() {
               </div>
               
               <div style={{ display: 'flex', gap: 12 }}>
-                {/* Doctor Filter Dropdown */}
                 <DoctorFilter 
                   value={doctorFilter} 
                   onChange={setDoctorFilter} 
                   doctors={uniqueDoctors} 
                 />
-                {/* Diagnosis Filter Dropdown */}
                 <DiagnosisFilter 
                   value={diagnosisFilter} 
                   onChange={setDiagnosisFilter} 
@@ -507,7 +592,7 @@ export default function MedicalHistory() {
             {/* Rows */}
             {filteredConsultations.map((consultation, idx) => (
               <div
-                key={consultation.id}
+                key={consultation.consultationId}
                 style={{
                   backgroundColor: C.white,
                   borderTop: idx === 0 ? 'none' : '1px solid rgba(0,0,0,0.06)',
@@ -525,9 +610,9 @@ export default function MedicalHistory() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>{consultation.patientName}</div>
                 </div>
-                <div style={{ fontSize: 13, color: C.text1 }}>{consultation.age}</div>
-                <div style={{ fontSize: 13, color: C.text1 }}>{consultation.dateTime}</div>
-                <div style={{ fontSize: 13, color: C.text1 }}>{consultation.doctor}</div>
+                <div style={{ fontSize: 13, color: C.text1 }}>{consultation.age || 'N/A'}</div>
+                <div style={{ fontSize: 13, color: C.text1 }}>{formatDate(consultation.consultationDate)}</div>
+                <div style={{ fontSize: 13, color: C.text1 }}>{consultation.doctorName}</div>
                 <div>
                   <DiagnosisBadge diagnosis={consultation.diagnosis} />
                 </div>
@@ -567,7 +652,7 @@ export default function MedicalHistory() {
         </div>
       </div>
 
-      {/* Details Modal */}
+      {/* Details/Edit Modal */}
       {selectedConsultation && (
         <div style={{
           position: 'fixed',
@@ -597,82 +682,225 @@ export default function MedicalHistory() {
               alignItems: 'center',
             }}>
               <div style={{ fontSize: 18, fontWeight: 700, color: C.text1 }}>
-                Consultation Details
+                {isEditing ? 'Edit Consultation' : 'Consultation Details'}
               </div>
-              <button
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to delete consultation for ${selectedConsultation.patientName}?`)) {
-                    handleDeleteConsultation(selectedConsultation);
-                  }
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '8px',
-                  borderRadius: 6,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  color: C.red,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  transition: 'background-color 0.2s ease',
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = C.redBg}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 6h18" />
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                  <line x1="10" y1="11" x2="10" y2="17" />
-                  <line x1="14" y1="11" x2="14" y2="17" />
-                </svg>
-                Delete
-              </button>
-            </div>
-
-            <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Patient Name</label>
-                <div style={{ fontSize: 14, fontWeight: 500, color: C.text1 }}>{selectedConsultation.patientName}</div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Age</label>
-                  <div style={{ fontSize: 14, color: C.text1 }}>{selectedConsultation.age}</div>
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Date & Time</label>
-                  <div style={{ fontSize: 14, color: C.text1 }}>{selectedConsultation.dateTime}</div>
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Doctor</label>
-                <div style={{ fontSize: 14, color: C.text1 }}>{selectedConsultation.doctor}</div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Diagnosis</label>
-                <DiagnosisBadge diagnosis={selectedConsultation.diagnosis} />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Consultation Notes</label>
-                <div style={{
-                  fontSize: 14,
-                  color: C.text1,
-                  backgroundColor: '#f8fafc',
-                  padding: 16,
-                  borderRadius: 12,
-                  lineHeight: 1.5,
-                }}>
-                  {selectedConsultation.details}
-                </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {!isEditing && (
+                  <button
+                    onClick={handleEditClick}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '8px 12px',
+                      borderRadius: 6,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      color: C.primary,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      transition: 'background-color 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = C.purpleBg}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <Icons.Edit />
+                    Edit
+                  </button>
+                )}
+                <button
+                  onClick={() => handleDeleteConsultation(selectedConsultation)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '8px 12px',
+                    borderRadius: 6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    color: C.red,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    transition: 'background-color 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = C.redBg}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 6h18" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    <line x1="10" y1="11" x2="10" y2="17" />
+                    <line x1="14" y1="11" x2="14" y2="17" />
+                  </svg>
+                  Delete
+                </button>
               </div>
             </div>
+
+            {isEditing ? (
+              // Edit Form
+              <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Patient Name</label>
+                  <input
+                    type="text"
+                    name="patientName"
+                    value={editFormData.patientName}
+                    onChange={handleEditInputChange}
+                    style={{ width: '100%', height: 40, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
+                  />
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Age</label>
+                    <input
+                      type="number"
+                      name="age"
+                      value={editFormData.age}
+                      onChange={handleEditInputChange}
+                      style={{ width: '100%', height: 40, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Gender</label>
+                    <select
+                      name="gender"
+                      value={editFormData.gender}
+                      onChange={handleEditInputChange}
+                      style={{ width: '100%', height: 40, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
+                    >
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Doctor</label>
+                  <input
+                    type="text"
+                    name="doctorName"
+                    value={editFormData.doctorName}
+                    onChange={handleEditInputChange}
+                    style={{ width: '100%', height: 40, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Date</label>
+                  <input
+                    type="date"
+                    name="consultationDate"
+                    value={editFormData.consultationDate?.split('T')[0] || ''}
+                    onChange={handleEditInputChange}
+                    style={{ width: '100%', height: 40, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Symptoms</label>
+                  <textarea
+                    name="symptoms"
+                    value={editFormData.symptoms}
+                    onChange={handleEditInputChange}
+                    rows={3}
+                    style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Diagnosis</label>
+                  <input
+                    type="text"
+                    name="diagnosis"
+                    value={editFormData.diagnosis}
+                    onChange={handleEditInputChange}
+                    style={{ width: '100%', height: 40, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 12px', fontSize: 13 }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Prescription</label>
+                  <textarea
+                    name="prescription"
+                    value={editFormData.prescription}
+                    onChange={handleEditInputChange}
+                    rows={3}
+                    style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Remarks</label>
+                  <textarea
+                    name="remarks"
+                    value={editFormData.remarks}
+                    onChange={handleEditInputChange}
+                    rows={2}
+                    style={{ width: '100%', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 12px', fontSize: 13, resize: 'vertical' }}
+                  />
+                </div>
+              </div>
+            ) : (
+              // View Details
+              <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Patient Name</label>
+                  <div style={{ fontSize: 14, fontWeight: 500, color: C.text1 }}>{selectedConsultation.patientName}</div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Age</label>
+                    <div style={{ fontSize: 14, color: C.text1 }}>{selectedConsultation.age || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Gender</label>
+                    <div style={{ fontSize: 14, color: C.text1 }}>{selectedConsultation.gender || 'N/A'}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Date</label>
+                  <div style={{ fontSize: 14, color: C.text1 }}>{formatDate(selectedConsultation.consultationDate)}</div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Doctor</label>
+                  <div style={{ fontSize: 14, color: C.text1 }}>{selectedConsultation.doctorName}</div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Symptoms</label>
+                  <div style={{ fontSize: 14, color: C.text1, backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, lineHeight: 1.5 }}>
+                    {selectedConsultation.symptoms || 'No symptoms recorded'}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Diagnosis</label>
+                  <DiagnosisBadge diagnosis={selectedConsultation.diagnosis} />
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Prescription</label>
+                  <div style={{ fontSize: 14, color: C.text1, backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, lineHeight: 1.5 }}>
+                    {selectedConsultation.prescription || 'No prescription recorded'}
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Remarks</label>
+                  <div style={{ fontSize: 14, color: C.text1, backgroundColor: '#f8fafc', padding: 16, borderRadius: 12, lineHeight: 1.5 }}>
+                    {selectedConsultation.remarks || 'No remarks'}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div style={{
               padding: '16px 28px',
@@ -682,7 +910,10 @@ export default function MedicalHistory() {
               gap: 12,
             }}>
               <button
-                onClick={() => setSelectedConsultation(null)}
+                onClick={() => {
+                  setSelectedConsultation(null);
+                  setIsEditing(false);
+                }}
                 style={{
                   height: 40,
                   padding: '0 24px',
@@ -705,36 +936,34 @@ export default function MedicalHistory() {
               >
                 Cancel
               </button>
-              <button
-                onClick={() => {
-                  if (window.confirm(`Are you sure you want to delete consultation for ${selectedConsultation.patientName}?`)) {
-                    handleDeleteConsultation(selectedConsultation);
-                  }
-                }}
-                style={{
-                  height: 40,
-                  padding: '0 24px',
-                  border: 'none',
-                  borderRadius: 8,
-                  backgroundColor: C.red,
-                  color: C.white,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = '#dc2626';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = C.red;
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
-              >
-                Delete
-              </button>
+              {isEditing && (
+                <button
+                  onClick={handleSaveEdit}
+                  style={{
+                    height: 40,
+                    padding: '0 24px',
+                    border: 'none',
+                    borderRadius: 8,
+                    backgroundColor: C.green,
+                    color: C.white,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: "'Poppins', sans-serif",
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#059669';
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = C.green;
+                    e.currentTarget.style.transform = 'translateY(0)';
+                  }}
+                >
+                  Save Changes
+                </button>
+              )}
             </div>
           </div>
         </div>

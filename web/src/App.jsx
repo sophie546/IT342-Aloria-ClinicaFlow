@@ -59,8 +59,9 @@ function App() {
           </ProtectedRoute>
         } />
         
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        {/* CHANGE THIS - redirect to patient-queue instead of login */}
+        <Route path="/" element={<Navigate to="/patient-queue" replace />} />
+        <Route path="*" element={<Navigate to="/patient-queue" replace />} />
       </Routes>
     </Router>
   );

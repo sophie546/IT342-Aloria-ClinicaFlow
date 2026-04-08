@@ -9,9 +9,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import java.util.Arrays;
 
 import edu.cit.aloria.clinicaflow.service.CustomOAuth2UserService;
+
+import java.util.Arrays;
 
 @Configuration
 @EnableWebSecurity
@@ -26,7 +27,7 @@ public class WebSecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**").permitAll()
+                .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**", "/api/medicalstaff/**", "/api/consultations/**").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
@@ -34,7 +35,7 @@ public class WebSecurityConfig {
                     .userService(customOAuth2UserService)
                 )
                 .successHandler((request, response, authentication) -> {
-                    response.sendRedirect("http://localhost:5173/oauth2/redirect");
+                    response.sendRedirect("http://localhost:5173/patient-queue");
                 })
                 .failureHandler((request, response, exception) -> {
                     response.sendRedirect("http://localhost:5173/login?error=true");
@@ -47,12 +48,10 @@ public class WebSecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // Fixed: removed duplicate entry
         configuration.setAllowedOrigins(Arrays.asList(
             "http://localhost:3000", 
             "http://localhost:5173",
             "http://localhost:5174"
-
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("*"));

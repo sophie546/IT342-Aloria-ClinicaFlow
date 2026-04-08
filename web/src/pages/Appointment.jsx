@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { staffService } from '../services/staffService';
+import API from '../services/api';
 
 /* ── Google Fonts ── */
 const fontLink = document.createElement('link');
@@ -31,14 +33,6 @@ const C = {
   border: '#e2e8f0',
 };
 
-/* ── Mock Data - All with past dates so today's count starts at 0 ── */
-const MOCK_PATIENTS = [
-  { id: 1, patientName: 'John Doe', age: 32, gender: 'Male', doctor: 'Dr. Maria Cruz', date: '2026-04-07', symptoms: 'Fever, cough', diagnosis: 'Common cold', prescription: 'Paracetamol 500mg', remarks: 'Rest well' },
-  { id: 2, patientName: 'Jane Smith', age: 28, gender: 'Female', doctor: 'Dr. Roberto Santos', date: '2026-04-07', symptoms: 'Headache, nausea', diagnosis: 'Migraine', prescription: 'Ibuprofen 400mg', remarks: 'Avoid bright lights' },
-  { id: 3, patientName: 'Mike Johnson', age: 45, gender: 'Male', doctor: 'Dr. Maria Cruz', date: '2026-04-06', symptoms: 'Chest pain', diagnosis: 'Hypertension', prescription: 'Lisinopril 10mg', remarks: 'Monitor BP daily' },
-];
-
-const MOCK_DOCTORS = ['Dr. Maria Cruz', 'Dr. Roberto Santos', 'Dr. James Smith'];
 const QUICK_TEMPLATES = [
   { label: 'Fever / Common Cold', symptoms: 'Fever, cough, runny nose', diagnosis: 'Common cold', prescription: 'Paracetamol 500mg, rest, fluids' },
   { label: 'Headache', symptoms: 'Headache, sensitivity to light', diagnosis: 'Tension headache', prescription: 'Ibuprofen 400mg, rest' },
@@ -197,7 +191,7 @@ export default function Appointment() {
     patientName: '',
     age: '',
     gender: 'Male',
-    doctor: MOCK_DOCTORS[0],
+    doctor: '',
     date: new Date().toISOString().split('T')[0],
     symptoms: '',
     diagnosis: '',
@@ -205,8 +199,53 @@ export default function Appointment() {
     remarks: '',
   });
 
-  const [consultations, setConsultations] = useState(MOCK_PATIENTS);
+  const [consultations, setConsultations] = useState([]);
+  const [availableDoctors, setAvailableDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Fetch available doctors
+  const fetchAvailableDoctors = async () => {
+    try {
+      const allStaff = await staffService.getAllStaff();
+      const doctors = allStaff.filter(staff => {
+        const isDoctor = staff.role?.toLowerCase() === 'doctor';
+        const isAvailable = staff.availability?.toLowerCase() === 'available';
+        return isDoctor && isAvailable;
+      });
+      
+      const formattedDoctors = doctors.map(staff => ({
+        staffId: staff.staffID,
+        name: `${staff.fname} ${staff.lname}`,
+      }));
+      
+      setAvailableDoctors(formattedDoctors);
+      if (formattedDoctors.length > 0 && !formData.doctor) {
+        setFormData(prev => ({ ...prev, doctor: formattedDoctors[0].name }));
+      }
+    } catch (error) {
+      console.error('Error fetching doctors:', error);
+    }
+  };
+
+  // Fetch all consultations
+  const fetchConsultations = async () => {
+    try {
+      const response = await API.get('/api/consultations/all');
+      setConsultations(response.data || []);
+    } catch (error) {
+      console.error('Error fetching consultations:', error);
+      setConsultations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAvailableDoctors();
+    fetchConsultations();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -222,38 +261,71 @@ export default function Appointment() {
     }));
   };
 
-  const handleSaveConsultation = () => {
+  const handleSaveConsultation = async () => {
     if (!formData.patientName.trim()) {
       alert('Please enter patient name');
       return;
     }
     
-    const newConsultation = { 
-      id: Date.now(), 
-      ...formData,
-      age: formData.age || 'N/A',
-    };
+    if (!formData.doctor) {
+      alert('Please select a doctor');
+      return;
+    }
     
-    setConsultations(prev => [newConsultation, ...prev]);
+    setSaving(true);
     
-    setFormData(prev => ({
-      patientName: '', 
-      age: '', 
-      gender: 'Male',
-      doctor: prev.doctor, 
-      date: prev.date,
-      symptoms: '', 
-      diagnosis: '', 
-      prescription: '', 
-      remarks: '',
-    }));
-    
-    setShowSuccess(true);
+    try {
+      const consultationData = {
+        patientName: formData.patientName,
+        age: formData.age ? parseInt(formData.age) : null,
+        gender: formData.gender,
+        doctorName: formData.doctor,
+        consultationDate: formData.date,
+        symptoms: formData.symptoms,
+        diagnosis: formData.diagnosis,
+        prescription: formData.prescription,
+        remarks: formData.remarks
+      };
+      
+      await API.post('/api/consultations/add', consultationData);
+      
+      await fetchConsultations();
+      
+      setFormData(prev => ({
+        patientName: '', 
+        age: '', 
+        gender: 'Male',
+        doctor: availableDoctors.length > 0 ? availableDoctors[0].name : '',
+        date: prev.date,
+        symptoms: '', 
+        diagnosis: '', 
+        prescription: '', 
+        remarks: '',
+      }));
+      
+      setShowSuccess(true);
+    } catch (error) {
+      console.error('Error saving consultation:', error);
+      alert('Failed to save consultation');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const today = new Date().toISOString().split('T')[0];
-  const todayCount = consultations.filter(c => c.date === today).length;
+  const todayCount = consultations.filter(c => c.consultationDate === today).length;
   const totalConsultations = consultations.length;
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div>Loading...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -266,7 +338,7 @@ export default function Appointment() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'auto' }}>
 
-        {/* ── Top Bar ── */}
+        {/* Top Bar */}
         <div style={{
           background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
           height: 105,
@@ -301,6 +373,7 @@ export default function Appointment() {
 
           <button
             onClick={handleSaveConsultation}
+            disabled={saving}
             style={{
               height: 38,
               padding: '0 20px',
@@ -314,25 +387,30 @@ export default function Appointment() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              cursor: 'pointer',
+              cursor: saving ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
               boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              opacity: saving ? 0.7 : 1,
             }}
             onMouseEnter={e => {
-              e.currentTarget.style.backgroundColor = C.primaryLight;
-              e.currentTarget.style.transform = 'translateY(-1px)';
+              if (!saving) {
+                e.currentTarget.style.backgroundColor = C.primaryLight;
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.backgroundColor = C.primary;
-              e.currentTarget.style.transform = 'translateY(0)';
+              if (!saving) {
+                e.currentTarget.style.backgroundColor = C.primary;
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
             }}
           >
             <Icons.Plus />
-            Save Consultation
+            {saving ? 'Saving...' : 'Save Consultation'}
           </button>
         </div>
 
-        {/* ── Content ── */}
+        {/* Content */}
         <div style={{ flex: 1, padding: '20px 34px 34px', display: 'flex', gap: 20 }}>
 
           {/* Left Column */}
@@ -376,8 +454,17 @@ export default function Appointment() {
                     <label style={labelStyle}>Doctor</label>
                     <select name="doctor" value={formData.doctor} onChange={handleInputChange}
                       style={{ ...inputStyle, appearance: 'auto' }}>
-                      {MOCK_DOCTORS.map(d => <option key={d}>{d}</option>)}
+                      {availableDoctors.length === 0 ? (
+                        <option disabled>No available doctors</option>
+                      ) : (
+                        availableDoctors.map(d => <option key={d.staffId} value={d.name}>{d.name}</option>)
+                      )}
                     </select>
+                    {availableDoctors.length === 0 && (
+                      <div style={{ fontSize: 11, color: C.red, marginTop: 4 }}>
+                        No doctors available at the moment
+                      </div>
+                    )}
                   </div>
                 </div>
                 <div style={{ marginTop: 16 }}>

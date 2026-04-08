@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { staffService } from '../services/staffService';
 
 /* ── Google Fonts ── */
 const fontLink = document.createElement('link');
@@ -38,15 +39,6 @@ const statusConfig = {
   Busy: { label: 'Busy', color: C.orange },
   'Off Duty': { label: 'Off Duty', color: C.red },
 };
-
-/* ── Mock Staff Data ── */
-const MOCK_STAFF = [
-  { id: 1, staffId: 'STAFF-001', name: 'Dr. Maria Cruz', role: 'Doctor', specialization: 'Cardiology', email: 'maria.cruz@clinic.com', contact: '09123456789', availability: 'Available' },
-  { id: 2, staffId: 'STAFF-002', name: 'Dr. Roberto Santos', role: 'Doctor', specialization: 'Neurology', email: 'roberto.santos@clinic.com', contact: '09358521578', availability: 'Busy' },
-  { id: 3, staffId: 'STAFF-003', name: 'Nurse Maria Reyes', role: 'Nurse', specialization: 'Emergency Care', email: 'maria.reyes@clinic.com', contact: '09059425894', availability: 'Off Duty' },
-  { id: 4, staffId: 'STAFF-004', name: 'Dr. James Smith', role: 'Doctor', specialization: 'Pediatrics', email: 'james.smith@clinic.com', contact: '09182345678', availability: 'Available' },
-  { id: 5, staffId: 'STAFF-005', name: 'Nurse Anna Dimagiba', role: 'Nurse', specialization: 'Surgery', email: 'anna.dimagiba@clinic.com', contact: '09271234567', availability: 'Available' },
-];
 
 /* ── Icons ── */
 const Icons = {
@@ -97,7 +89,7 @@ const Icons = {
   ),
 };
 
-/* ── Status Badge with Dot (matching your example) ── */
+/* ── Status Badge ── */
 function StatusBadge({ status }) {
   const cfg = statusConfig[status];
   return (
@@ -121,7 +113,7 @@ function StatusBadge({ status }) {
   );
 }
 
-/* ── Role Filter Dropdown ── */
+/* ── Role Filter ── */
 function RoleFilter({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -135,63 +127,29 @@ function RoleFilter({ value, onChange }) {
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          height: 38,
-          padding: '0 16px',
-          backgroundColor: C.white,
-          border: '1px solid #e2e8f0',
-          borderRadius: 8,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 13,
-          fontWeight: 500,
-          color: C.text1,
-          cursor: 'pointer',
-          fontFamily: "'Poppins', sans-serif",
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = C.primary}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-      >
-        <Icons.Filter />
-        {value}
+      <button onClick={() => setOpen(!open)} style={{
+        height: 38, padding: '0 16px', backgroundColor: C.white, border: '1px solid #e2e8f0',
+        borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13,
+        fontWeight: 500, color: C.text1, cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = C.primary}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}>
+        <Icons.Filter /> {value}
       </button>
       {open && (
-        <div style={{
-          position: 'absolute',
-          right: 0,
-          top: '100%',
-          marginTop: 4,
-          zIndex: 999,
-          backgroundColor: C.white,
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          minWidth: 150,
-          overflow: 'hidden',
-        }}>
+        <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 999,
+          backgroundColor: C.white, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          minWidth: 150, overflow: 'hidden' }}>
           {options.map(option => (
-            <button
-              key={option}
-              onClick={() => { onChange(option); setOpen(false); }}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: option === value ? 700 : 400,
-                color: C.text1,
-                textAlign: 'left',
-                fontFamily: "'Poppins', sans-serif",
-                transition: 'background 0.2s ease',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
+            <button key={option} onClick={() => { onChange(option); setOpen(false); }} style={{
+              width: '100%', padding: '10px 16px', border: 'none', background: 'none',
+              cursor: 'pointer', fontSize: 13, fontWeight: option === value ? 700 : 400,
+              color: C.text1, textAlign: 'left', fontFamily: "'Poppins', sans-serif",
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
               {option}
             </button>
           ))}
@@ -201,7 +159,7 @@ function RoleFilter({ value, onChange }) {
   );
 }
 
-/* ── Status Filter Dropdown ── */
+/* ── Status Filter ── */
 function StatusFilter({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -215,63 +173,29 @@ function StatusFilter({ value, onChange }) {
 
   return (
     <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(!open)}
-        style={{
-          height: 38,
-          padding: '0 16px',
-          backgroundColor: C.white,
-          border: '1px solid #e2e8f0',
-          borderRadius: 8,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          fontSize: 13,
-          fontWeight: 500,
-          color: C.text1,
-          cursor: 'pointer',
-          fontFamily: "'Poppins', sans-serif",
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.borderColor = C.primary}
-        onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}
-      >
-        <Icons.Filter />
-        {value}
+      <button onClick={() => setOpen(!open)} style={{
+        height: 38, padding: '0 16px', backgroundColor: C.white, border: '1px solid #e2e8f0',
+        borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13,
+        fontWeight: 500, color: C.text1, cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = C.primary}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}>
+        <Icons.Filter /> {value}
       </button>
       {open && (
-        <div style={{
-          position: 'absolute',
-          right: 0,
-          top: '100%',
-          marginTop: 4,
-          zIndex: 999,
-          backgroundColor: C.white,
-          borderRadius: 8,
-          boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-          minWidth: 150,
-          overflow: 'hidden',
-        }}>
+        <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 999,
+          backgroundColor: C.white, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          minWidth: 150, overflow: 'hidden' }}>
           {options.map(option => (
-            <button
-              key={option}
-              onClick={() => { onChange(option); setOpen(false); }}
-              style={{
-                width: '100%',
-                padding: '10px 16px',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: option === value ? 700 : 400,
-                color: C.text1,
-                textAlign: 'left',
-                fontFamily: "'Poppins', sans-serif",
-                transition: 'background 0.2s ease',
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            >
+            <button key={option} onClick={() => { onChange(option); setOpen(false); }} style={{
+              width: '100%', padding: '10px 16px', border: 'none', background: 'none',
+              cursor: 'pointer', fontSize: 13, fontWeight: option === value ? 700 : 400,
+              color: C.text1, textAlign: 'left', fontFamily: "'Poppins', sans-serif",
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
               {option}
             </button>
           ))}
@@ -285,17 +209,10 @@ function StatusFilter({ value, onChange }) {
 function StatCard({ title, value, sub, icon: Icon }) {
   return (
     <div style={{
-      flex: 1,
-      height: 124,
-      backgroundColor: C.white,
-      borderRadius: 10,
-      boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-      padding: '22px 17px',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-      transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-      cursor: 'pointer',
+      flex: 1, height: 124, backgroundColor: C.white, borderRadius: 10,
+      boxShadow: '0 2px 6px rgba(0,0,0,0.08)', padding: '22px 17px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'pointer',
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-4px)';
@@ -315,7 +232,7 @@ function StatCard({ title, value, sub, icon: Icon }) {
   );
 }
 
-/* ── Staff Table Row ── */
+/* ── Staff Table Row with Edit/Delete ── */
 function StaffRow({ staff, index, onEdit, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -330,10 +247,8 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
     <div style={{
       backgroundColor: C.white,
       borderTop: index === 0 ? 'none' : '1px solid rgba(0,0,0,0.06)',
-      padding: '0 41px',
-      height: 82,
-      display: 'grid',
-      gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
+      padding: '0 41px', height: 82,
+      display: 'grid', gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
       alignItems: 'center',
       transition: 'background-color 0.2s ease',
     }}
@@ -342,15 +257,12 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
       <div style={{ fontSize: 14, fontWeight: 600, color: C.text2 }}>{index + 1}</div>
       <div>
         <div style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>{staff.name}</div>
-        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>#{staff.staffId}</div>
+        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{staff.staffId}</div>
       </div>
       <div>
         <span style={{
           backgroundColor: staff.role === 'Doctor' ? C.purpleBg : C.greenBg,
-          padding: '4px 10px',
-          borderRadius: 20,
-          fontSize: 11,
-          fontWeight: 600,
+          padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
           color: staff.role === 'Doctor' ? C.purple : C.green,
         }}>{staff.role}</span>
       </div>
@@ -367,31 +279,16 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
         </button>
         {menuOpen && (
           <div style={{
-            position: 'absolute',
-            right: 0,
-            top: '100%',
-            zIndex: 999,
-            backgroundColor: C.white,
-            borderRadius: 8,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-            minWidth: 120,
-            overflow: 'hidden',
+            position: 'absolute', right: 0, top: '100%', zIndex: 999,
+            backgroundColor: C.white, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            minWidth: 120, overflow: 'hidden',
           }}>
             <button
               onClick={() => { onEdit(staff); setMenuOpen(false); }}
               style={{
-                width: '100%',
-                padding: '10px 16px',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 500,
-                color: C.text1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                textAlign: 'left',
+                width: '100%', padding: '10px 16px', border: 'none', background: 'none',
+                cursor: 'pointer', fontSize: 13, fontWeight: 500, color: C.text1,
+                display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left',
                 fontFamily: "'Poppins', sans-serif",
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
@@ -402,18 +299,9 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
             <button
               onClick={() => { onDelete(staff); setMenuOpen(false); }}
               style={{
-                width: '100%',
-                padding: '10px 16px',
-                border: 'none',
-                background: 'none',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontWeight: 500,
-                color: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                textAlign: 'left',
+                width: '100%', padding: '10px 16px', border: 'none', background: 'none',
+                cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#ef4444',
+                display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left',
                 fontFamily: "'Poppins', sans-serif",
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fff5f5'}
@@ -428,41 +316,107 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
   );
 }
 
-/* ── Main Component ── */
+/* ── MAIN COMPONENT ── */
 export default function MedicalStaff() {
-  const [staff, setStaff] = useState(MOCK_STAFF);
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All Roles');
   const [statusFilter, setStatusFilter] = useState('All Status');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
 
+  // Get current logged-in user role
+  const getCurrentUserRole = () => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        return userData.role;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const currentUserRole = getCurrentUserRole();
+  const isDoctor = currentUserRole === 'DOCTOR';
+
+  // Fetch users from user_account table
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const users = await staffService.getAllUsers();
+      console.log('Fetched users from user_account:', users);
+      
+      const formattedStaff = users.map(user => ({
+        id: user.accountID,
+        staffId: `STAFF-${String(user.accountID).padStart(3, '0')}`,
+        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name',
+        role: user.role || 'Staff',
+        specialization: user.specialty || 'General',
+        email: user.email || 'No email',
+        contact: user.contactNo || 'Not provided',
+        availability: user.availability || 'Available',
+        picture: user.picture,
+        provider: user.provider,
+        lastLogin: user.lastLogin
+      }));
+      
+      setStaff(formattedStaff);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  // Filter staff with case-insensitive matching
   const filteredStaff = staff.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(search.toLowerCase()) ||
                          member.specialization.toLowerCase().includes(search.toLowerCase()) ||
                          member.role.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = roleFilter === 'All Roles' || member.role === roleFilter;
-    const matchesStatus = statusFilter === 'All Status' || member.availability === statusFilter;
+    const matchesRole = roleFilter === 'All Roles' || member.role?.toLowerCase() === roleFilter.toLowerCase();
+    const matchesStatus = statusFilter === 'All Status' || member.availability?.toLowerCase() === statusFilter.toLowerCase();
     return matchesSearch && matchesRole && matchesStatus;
   });
 
+  // Stats with case-insensitive counting
   const stats = [
     { title: 'Total Staff', value: staff.length, sub: 'All medical staff', icon: Icons.Users },
-    { title: 'Doctors', value: staff.filter(s => s.role === 'Doctor').length, sub: 'Medical Physicians', icon: Icons.DoctorIcon },
-    { title: 'Nurses', value: staff.filter(s => s.role === 'Nurse').length, sub: 'Nursing staff', icon: Icons.NurseIcon },
-    { title: 'Available Now', value: staff.filter(s => s.availability === 'Available').length, sub: 'Currently active', icon: Icons.Users },
+    { title: 'Doctors', value: staff.filter(s => s.role?.toLowerCase() === 'doctor').length, sub: 'Medical Physicians', icon: Icons.DoctorIcon },
+    { title: 'Nurses', value: staff.filter(s => s.role?.toLowerCase() === 'nurse').length, sub: 'Nursing staff', icon: Icons.NurseIcon },
+    { title: 'Available Now', value: staff.filter(s => s.availability?.toLowerCase() === 'available').length, sub: 'Currently active', icon: Icons.Users },
   ];
 
   const handleAddStaff = () => {
+    if (isDoctor) {
+      alert('Doctors cannot add staff members');
+      return;
+    }
     setShowAddModal(true);
   };
 
   const handleEditStaff = (staff) => {
+    if (isDoctor) {
+      alert('Doctors cannot edit staff members');
+      return;
+    }
     setEditingStaff(staff);
     setShowAddModal(true);
   };
 
   const handleDeleteStaff = (staff) => {
+    if (isDoctor) {
+      alert('Doctors cannot delete staff members');
+      return;
+    }
+    
     if (window.confirm(`Are you sure you want to delete ${staff.name}?`)) {
       setStaff(staff.filter(s => s.id !== staff.id));
     }
@@ -478,37 +432,33 @@ export default function MedicalStaff() {
     setEditingStaff(null);
   };
 
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div>Loading staff data...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{
-      display: 'flex',
-      minHeight: '100vh',
-      background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
-      fontFamily: "'Poppins', sans-serif",
-    }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
       <Sidebar />
-
-      <div style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
-
+      <div style={{ flex: 1, overflow: 'auto' }}>
         {/* Top Bar */}
         <div style={{
           background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
-          height: 105,
-          padding: '0 34px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          flexShrink: 0,
-          borderRadius: '0 0 10px 10px',
+          height: 105, padding: '0 34px', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          flexShrink: 0, borderRadius: '0 0 10px 10px',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
-              width: 40, height: 40,
-              backgroundColor: C.primary,
-              borderRadius: 10,
+              width: 40, height: 40, backgroundColor: C.primary, borderRadius: 10,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              flexShrink: 0,
-              boxShadow: '0 2px 6px rgba(25,0,81,0.3)',
+              flexShrink: 0, boxShadow: '0 2px 6px rgba(25,0,81,0.3)',
             }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff">
                 <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
@@ -519,60 +469,29 @@ export default function MedicalStaff() {
                 Staff Management
               </div>
               <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 400, color: 'rgba(25,0,81,0.65)', lineHeight: '16px', marginTop: 6 }}>
-                Manage doctors, nurses, and medical staff
+                {isDoctor ? 'View only mode' : 'Manage doctors, nurses, and medical staff'}
               </div>
             </div>
           </div>
 
           <div style={{ display: 'flex', gap: 12 }}>
-            {/* Search Bar */}
             <div style={{
-              width: 283, height: 38,
-              backgroundColor: C.primary,
-              borderRadius: 8,
-              border: '0.5px solid rgba(25,0,81,0.8)',
-              display: 'flex', alignItems: 'center',
-              padding: '0 14px',
-              gap: 8,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              width: 283, height: 38, backgroundColor: C.primary, borderRadius: 8,
+              border: '0.5px solid rgba(25,0,81,0.8)', display: 'flex', alignItems: 'center',
+              padding: '0 14px', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
             }}>
               <Icons.Search />
-              <input
-                type="text"
-                placeholder="Search staff..."
-                value={search}
+              <input type="text" placeholder="Search staff..." value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: 'transparent',
-                  border: 'none',
-                  outline: 'none',
-                  color: '#fff',
-                  fontSize: 13,
-                  fontFamily: "'Poppins', sans-serif",
-                }}
-              />
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 13 }} />
             </div>
 
-            {/* Add Staff Button */}
-            <button
-              onClick={handleAddStaff}
-              style={{
-                height: 38,
-                padding: '0 20px',
-                backgroundColor: C.primary,
-                border: 'none',
-                borderRadius: 8,
-                color: C.white,
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily: "'Poppins', sans-serif",
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            {!isDoctor && (
+              <button onClick={handleAddStaff} style={{
+                height: 38, padding: '0 20px', backgroundColor: C.primary, border: 'none',
+                borderRadius: 8, color: C.white, fontSize: 13, fontWeight: 600,
+                fontFamily: "'Poppins', sans-serif", display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.backgroundColor = C.primaryLight;
@@ -581,36 +500,24 @@ export default function MedicalStaff() {
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = C.primary;
                 e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
-              <Icons.Add />
-              Add Staff
-            </button>
+              }}>
+                <Icons.Add /> Add Staff
+              </button>
+            )}
           </div>
         </div>
 
         {/* Stat Cards */}
         <div style={{ display: 'flex', gap: 20, padding: '20px 34px 0' }}>
-          {stats.map((stat) => (
-            <StatCard key={stat.title} {...stat} />
-          ))}
+          {stats.map((stat) => <StatCard key={stat.title} {...stat} />)}
         </div>
 
         {/* Staff Directory Table */}
         <div style={{
-          margin: '20px 34px 34px',
-          backgroundColor: C.primary,
-          borderRadius: 10,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-          overflow: 'hidden',
+          margin: '20px 34px 34px', backgroundColor: C.primary, borderRadius: 10,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)', overflow: 'hidden',
         }}>
-          {/* Table Header with Role Filter and Status Filter */}
-          <div style={{
-            padding: '26px 27px 14px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}>
+          <div style={{ padding: '26px 27px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, color: '#fff', lineHeight: '24px' }}>
                 Staff Directory
@@ -619,11 +526,8 @@ export default function MedicalStaff() {
                 {filteredStaff.length} staff members found
               </div>
             </div>
-            
             <div style={{ display: 'flex', gap: 12 }}>
-              {/* Role Filter Dropdown */}
               <RoleFilter value={roleFilter} onChange={setRoleFilter} />
-              {/* Status Filter Dropdown */}
               <StatusFilter value={statusFilter} onChange={setStatusFilter} />
             </div>
           </div>
@@ -631,24 +535,20 @@ export default function MedicalStaff() {
           {/* Column Labels */}
           <div style={{ backgroundColor: '#f9fafb', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
-              padding: '12px 41px',
-              alignItems: 'center',
+              display: 'grid', gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
+              padding: '12px 41px', alignItems: 'center',
             }}>
               {['#', 'STAFF', 'ROLE', 'SPECIALIZATION', 'EMAIL', 'CONTACT', 'AVAILABILITY', ''].map((h, i) => (
-                <div key={i} style={{ fontSize: 12, fontWeight: 700, color: C.text2, fontFamily: "'Poppins', sans-serif" }}>
-                  {h}
-                </div>
+                <div key={i} style={{ fontSize: 12, fontWeight: 700, color: C.text2, fontFamily: "'Poppins', sans-serif" }}>{h}</div>
               ))}
             </div>
           </div>
 
           {/* Rows */}
-          {filteredStaff.map((staff, idx) => (
+          {filteredStaff.map((s, idx) => (
             <StaffRow
-              key={staff.id}
-              staff={staff}
+              key={s.id}
+              staff={s}
               index={idx}
               onEdit={handleEditStaff}
               onDelete={handleDeleteStaff}
@@ -696,29 +596,15 @@ function StaffModal({ staff, onClose, onSave }) {
 
   return (
     <div style={{
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9999,
-      backgroundColor: 'rgba(0,0,0,0.5)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      backdropFilter: 'blur(4px)',
+      position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)',
     }}>
       <div style={{
-        backgroundColor: C.white,
-        borderRadius: 16,
-        width: 550,
-        maxWidth: '90%',
-        maxHeight: '90vh',
-        overflow: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        backgroundColor: C.white, borderRadius: 16, width: 550, maxWidth: '90%',
+        maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         fontFamily: "'Poppins', sans-serif",
       }}>
-        <div style={{
-          padding: '24px 28px',
-          borderBottom: '1px solid #e2e8f0',
-        }}>
+        <div style={{ padding: '24px 28px', borderBottom: '1px solid #e2e8f0' }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: C.text1 }}>
             {staff ? 'Edit Staff Member' : 'Add New Staff'}
           </div>
@@ -728,133 +614,48 @@ function StaffModal({ staff, onClose, onSave }) {
           <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Full Name *</label>
-              <input
-                type="text"
-                required
-                value={formData.name}
+              <input type="text" required value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                style={{
-                  width: '100%',
-                  height: 42,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  padding: '0 14px',
-                  fontSize: 13,
-                  color: C.text1,
-                  outline: 'none',
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: 'border-color 0.2s ease',
-                }}
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }}
                 onFocus={(e) => e.target.style.borderColor = C.primary}
-                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
-              />
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Role *</label>
-                <select
-                  value={formData.role}
-                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                  style={{
-                    width: '100%',
-                    height: 42,
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    padding: '0 14px',
-                    fontSize: 13,
-                    color: C.text1,
-                    outline: 'none',
-                    fontFamily: "'Poppins', sans-serif",
-                    backgroundColor: C.white,
-                  }}
-                >
+                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif", backgroundColor: C.white }}>
                   <option value="Doctor">Doctor</option>
                   <option value="Nurse">Nurse</option>
                 </select>
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Specialization *</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.specialization}
+                <input type="text" required value={formData.specialization}
                   onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
-                  style={{
-                    width: '100%',
-                    height: 42,
-                    border: '1px solid #e2e8f0',
-                    borderRadius: 8,
-                    padding: '0 14px',
-                    fontSize: 13,
-                    color: C.text1,
-                    outline: 'none',
-                    fontFamily: "'Poppins', sans-serif",
-                  }}
-                />
+                  style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }} />
               </div>
             </div>
 
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Email *</label>
-              <input
-                type="email"
-                required
-                value={formData.email}
+              <input type="email" required value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                style={{
-                  width: '100%',
-                  height: 42,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  padding: '0 14px',
-                  fontSize: 13,
-                  color: C.text1,
-                  outline: 'none',
-                  fontFamily: "'Poppins', sans-serif",
-                }}
-              />
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }} />
             </div>
 
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Contact Number *</label>
-              <input
-                type="tel"
-                required
-                value={formData.contact}
+              <input type="tel" required value={formData.contact}
                 onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                style={{
-                  width: '100%',
-                  height: 42,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  padding: '0 14px',
-                  fontSize: 13,
-                  color: C.text1,
-                  outline: 'none',
-                  fontFamily: "'Poppins', sans-serif",
-                }}
-              />
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }} />
             </div>
 
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Availability</label>
-              <select
-                value={formData.availability}
-                onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
-                style={{
-                  width: '100%',
-                  height: 42,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  padding: '0 14px',
-                  fontSize: 13,
-                  color: C.text1,
-                  outline: 'none',
-                  fontFamily: "'Poppins', sans-serif",
-                  backgroundColor: C.white,
-                }}
-              >
+              <select value={formData.availability} onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif", backgroundColor: C.white }}>
                 <option value="Available">Available</option>
                 <option value="Busy">Busy</option>
                 <option value="Off Duty">Off Duty</option>
@@ -862,62 +663,11 @@ function StaffModal({ staff, onClose, onSave }) {
             </div>
           </div>
 
-          <div style={{
-            padding: '16px 28px',
-            borderTop: '1px solid #e2e8f0',
-            display: 'flex',
-            justifyContent: 'flex-end',
-            gap: 12,
-          }}>
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                height: 40,
-                padding: '0 24px',
-                border: '1px solid #e2e8f0',
-                borderRadius: 8,
-                backgroundColor: C.white,
-                fontSize: 13,
-                fontWeight: 600,
-                color: C.text2,
-                cursor: 'pointer',
-                fontFamily: "'Poppins', sans-serif",
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f8f9fa';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = C.white;
-              }}
-            >
+          <div style={{ padding: '16px 28px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <button type="button" onClick={onClose} style={{ height: 40, padding: '0 24px', border: '1px solid #e2e8f0', borderRadius: 8, backgroundColor: C.white, fontSize: 13, fontWeight: 600, color: C.text2, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
               Cancel
             </button>
-            <button
-              type="submit"
-              style={{
-                height: 40,
-                padding: '0 24px',
-                border: 'none',
-                borderRadius: 8,
-                backgroundColor: C.primary,
-                color: C.white,
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: "'Poppins', sans-serif",
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = C.primaryLight;
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = C.primary;
-                e.currentTarget.style.transform = 'translateY(0)';
-              }}
-            >
+            <button type="submit" style={{ height: 40, padding: '0 24px', border: 'none', borderRadius: 8, backgroundColor: C.primary, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
               {staff ? 'Update Staff' : 'Add Staff'}
             </button>
           </div>

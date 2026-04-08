@@ -31,10 +31,10 @@ const C = {
 };
 
 const MOCK = [
-  { id: 1, queueNumber: 1, patient: { firstName: 'Jungwon', lastName: 'Yang', age: 45, patientId: 'ID: 1' }, status: 'CONSULTING', assignedDoctor: 'Dr. Cruz', arrivalTime: '15 mins.' },
-  { id: 2, queueNumber: 2, patient: { firstName: 'Evan', lastName: 'Lee', age: 32, patientId: 'ID: 2' }, status: 'WAITING', assignedDoctor: 'Dr. Cruz', arrivalTime: '30 mins.' },
-  { id: 3, queueNumber: 3, patient: { firstName: 'Jake', lastName: 'Sim', age: 28, patientId: 'ID: 3' }, status: 'WAITING', assignedDoctor: 'Dr. Santos', arrivalTime: '45 mins.' },
-  { id: 4, queueNumber: 4, patient: { firstName: 'Sarah', lastName: 'Johnson', age: 45, patientId: 'ID: 4' }, status: 'COMPLETED', assignedDoctor: 'Dr. Smith', arrivalTime: '1 hr' },
+  { id: 1, queueNumber: 1, patient: { firstName: 'Jungwon', lastName: 'Yang', age: 45, patientId: 'ID: 1' }, status: 'CONSULTING', assignedDoctor: 'Dr. Maria Cruz', arrivalTime: '15 mins.' },
+  { id: 2, queueNumber: 2, patient: { firstName: 'Evan', lastName: 'Lee', age: 32, patientId: 'ID: 2' }, status: 'WAITING', assignedDoctor: 'Dr. Maria Cruz', arrivalTime: '30 mins.' },
+  { id: 3, queueNumber: 3, patient: { firstName: 'Jake', lastName: 'Sim', age: 28, patientId: 'ID: 3' }, status: 'WAITING', assignedDoctor: 'Dr. Roberto Santos', arrivalTime: '45 mins.' },
+  { id: 4, queueNumber: 4, patient: { firstName: 'Sarah', lastName: 'Johnson', age: 45, patientId: 'ID: 4' }, status: 'COMPLETED', assignedDoctor: 'Dr. James Smith', arrivalTime: '1 hr' },
 ];
 
 const statusConfig = {
@@ -443,8 +443,12 @@ export default function PatientQueue() {
 
   const rows = queue
     .filter(item => {
-      const name = `${item.patient.firstName} ${item.patient.lastName}`.toLowerCase();
-      return name.includes(search.toLowerCase()) &&
+      const patientName = `${item.patient.firstName} ${item.patient.lastName}`.toLowerCase();
+      const doctorName = item.assignedDoctor.toLowerCase();
+      const searchTerm = search.toLowerCase();
+      
+      // Search by patient name OR doctor name
+      return (patientName.includes(searchTerm) || doctorName.includes(searchTerm)) &&
         (filterStatus === 'all' || item.status === filterStatus);
     })
     .map(item => ({
@@ -460,7 +464,7 @@ export default function PatientQueue() {
     }));
 
   const stats = [
-    { title: 'Total Patients', value: queue.length, sub: '+2 today', icon: Icons.People },
+    { title: 'Total Patients', value: queue.length, sub: 'In queue today', icon: Icons.People },
     { title: 'Waiting', value: queue.filter(q => q.status === 'WAITING').length, sub: 'In queue', icon: Icons.Schedule },
     { title: 'Consulting', value: queue.filter(q => q.status === 'CONSULTING').length, sub: 'In progress', icon: Icons.Medical },
     { title: 'Completed', value: queue.filter(q => q.status === 'COMPLETED').length, sub: 'Today', icon: Icons.Check },
@@ -494,7 +498,7 @@ export default function PatientQueue() {
       background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
       fontFamily: "'Poppins', sans-serif",
     }}>
-      <Sidebar user={{ firstName: 'Dr.', lastName: 'Smith', role: 'Senior Physician' }} onLogout={() => {}} />
+      <Sidebar />
 
       <div style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
 
@@ -509,7 +513,6 @@ export default function PatientQueue() {
           boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
           flexShrink: 0,
           borderRadius: '0 0 10px 10px',
-          margin: '0 0 0 0',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{
@@ -534,7 +537,7 @@ export default function PatientQueue() {
             </div>
           </div>
 
-          {/* Search Bar */}
+          {/* Search Bar - Updated placeholder */}
           <div style={{
             width: 283, height: 38,
             backgroundColor: C.primary,
@@ -548,7 +551,7 @@ export default function PatientQueue() {
             <Icons.Search />
             <input
               type="text"
-              placeholder="Search patients, doctors..."
+              placeholder="Search by patient or doctor..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{

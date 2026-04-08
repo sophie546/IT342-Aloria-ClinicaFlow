@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../assets/logo.png'; // Adjust the path based on where your logo.png is located
+import { staffService } from '../services/staffService';
 
 const menuItems = [
   {
@@ -50,16 +51,116 @@ const menuItems = [
   },
 ];
 
-export default function Sidebar({ user, onLogout }) {
+export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isRotating, setIsRotating] = React.useState(false);
+  const [isRotating, setIsRotating] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch user data from localStorage or backend
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        // First try to get from localStorage
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          setUser(userData);
+          setLoading(false);
+          return;
+        }
+        
+        // If not in localStorage, try to fetch from backend
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const users = await staffService.getAllUsers();
+          const currentUser = users.find(u => u.email === session.user.email);
+          if (currentUser) {
+            setUser(currentUser);
+            localStorage.setItem('user', JSON.stringify(currentUser));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchUser();
+  }, []);
 
   const handleSettingsClick = () => {
     setIsRotating(true);
     setTimeout(() => setIsRotating(false), 500);
     // Add your settings logic here
   };
+
+  // Get initials for avatar
+  const getInitials = () => {
+    if (!user) return 'GU';
+    const firstName = user.firstName || user.first_name || '';
+    const lastName = user.lastName || user.last_name || '';
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    }
+    if (firstName) return firstName.charAt(0).toUpperCase();
+    if (lastName) return lastName.charAt(0).toUpperCase();
+    return 'U';
+  };
+
+  // Get display name
+  const getDisplayName = () => {
+    if (!user) return 'Guest User';
+    const firstName = user.firstName || user.first_name || '';
+    const lastName = user.lastName || user.last_name || '';
+    if (firstName && lastName) {
+      return `${firstName} ${lastName}`;
+    }
+    if (firstName) return firstName;
+    if (lastName) return lastName;
+    return user.email?.split('@')[0] || 'User';
+  };
+
+  // Get role display
+  const getRoleDisplay = () => {
+    if (!user) return 'User';
+    const role = user.role || '';
+    if (role === 'DOCTOR') return 'Doctor';
+    if (role === 'Doctor') return 'Doctor';
+    if (role === 'doctor') return 'Doctor';
+    if (role === 'NURSE') return 'Nurse';
+    if (role === 'Nurse') return 'Nurse';
+    if (role === 'nurse') return 'Nurse';
+    return role || 'Staff Member';
+  };
+
+  // Get role color
+  const getRoleColor = () => {
+    const role = user?.role?.toLowerCase() || '';
+    if (role === 'doctor') return '#667eea';
+    if (role === 'nurse') return '#10b981';
+    return '#190051';
+  };
+
+  if (loading) {
+    return (
+      <div
+        style={{
+          width: 281,
+          minWidth: 281,
+          height: '100vh',
+          background: 'linear-gradient(135deg, #190051 0%, #2d0a6e 50%, #190051 100%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <div style={{ color: '#fff' }}>Loading...</div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -191,21 +292,6 @@ export default function Sidebar({ user, onLogout }) {
                 }
               }}
             >
-              {/* Ripple effect on click */}
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  width: '100%',
-                  height: '100%',
-                  background: 'radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%)',
-                  transform: 'translate(-50%, -50%) scale(0)',
-                  transition: 'transform 0.5s ease',
-                  pointerEvents: 'none',
-                }}
-                className="ripple"
-              />
               <span style={{ 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -233,7 +319,7 @@ export default function Sidebar({ user, onLogout }) {
         })}
       </div>
 
-      {/* Doctor Profile */}
+      {/* User Profile Card - Dynamically shows logged-in user */}
       <div style={{ padding: '0 16px 24px' }}>
         <div
           style={{
@@ -262,7 +348,7 @@ export default function Sidebar({ user, onLogout }) {
             style={{
               width: 42,
               height: 42,
-              backgroundColor: '#190051',
+              backgroundColor: getRoleColor(),
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
@@ -282,14 +368,14 @@ export default function Sidebar({ user, onLogout }) {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            DS
+            {getInitials()}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, color: '#190051', lineHeight: '16px' }}>
-              Dr. Smith
+              {getDisplayName()}
             </div>
             <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 10, fontWeight: 400, color: 'rgba(25,0,81,0.65)', lineHeight: '14px', marginTop: 2 }}>
-              Senior Physician
+              {getRoleDisplay()}
             </div>
           </div>
           <button
@@ -333,7 +419,7 @@ export default function Sidebar({ user, onLogout }) {
       </div>
 
       {/* Add CSS animations */}
-      <style jsx>{`
+      <style>{`
         @keyframes slideIn {
           from {
             opacity: 0;
@@ -343,17 +429,6 @@ export default function Sidebar({ user, onLogout }) {
             opacity: 1;
             transform: translateX(0);
           }
-        }
-        
-        @keyframes ripple {
-          to {
-            transform: translate(-50%, -50%) scale(4);
-            opacity: 0;
-          }
-        }
-        
-        .ripple {
-          animation: ripple 0.5s ease-out;
         }
       `}</style>
     </div>
