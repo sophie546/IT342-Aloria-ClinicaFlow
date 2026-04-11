@@ -1,0 +1,753 @@
+import React, { useState, useRef, useEffect } from 'react';
+import Sidebar from '../components/Sidebar';
+import { staffService } from '../services/staffService';
+
+/* ── Google Fonts ── */
+const fontLink = document.createElement('link');
+fontLink.href = 'https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap';
+fontLink.rel = 'stylesheet';
+if (!document.head.querySelector('[href*="Poppins"]')) document.head.appendChild(fontLink);
+
+const globalStyle = document.createElement('style');
+globalStyle.textContent = `*, body { font-family: 'Poppins', sans-serif !important; box-sizing: border-box; }`;
+if (!document.head.querySelector('[data-poppins-override]')) {
+  globalStyle.setAttribute('data-poppins-override', '1');
+  document.head.appendChild(globalStyle);
+}
+
+/* ── Constants ── */
+const C = {
+  primary: '#190051',
+  primaryLight: '#360185',
+  white: '#ffffff',
+  text1: '#1e293b',
+  text2: '#6b7280',
+  textMuted: 'rgba(30,41,59,0.4)',
+  purple: '#667eea',
+  purpleBg: 'rgba(102,126,234,0.12)',
+  green: '#10b981',
+  greenBg: 'rgba(16,185,129,0.12)',
+  orange: '#f59e0b',
+  orangeBg: 'rgba(245,158,11,0.12)',
+  red: '#ef4444',
+  redBg: 'rgba(239,68,68,0.1)',
+};
+
+/* ── Status Config ── */
+const statusConfig = {
+  Available: { label: 'Available', color: C.green },
+  Busy: { label: 'Busy', color: C.orange },
+  'Off Duty': { label: 'Off Duty', color: C.red },
+};
+
+/* ── Icons ── */
+const Icons = {
+  Users: () => (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill={C.primary}>
+      <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
+    </svg>
+  ),
+  DoctorIcon: () => (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill={C.purple}>
+      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 4c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm0 13c-2.33 0-4.31-1.46-5.11-3.5h10.22c-.8 2.04-2.78 3.5-5.11 3.5z"/>
+    </svg>
+  ),
+  NurseIcon: () => (
+    <svg width="32" height="32" viewBox="0 0 24 24" fill={C.green}>
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+    </svg>
+  ),
+  Search: () => (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="rgba(255,255,255,0.75)">
+      <path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+    </svg>
+  ),
+  Add: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+    </svg>
+  ),
+  Edit: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+    </svg>
+  ),
+  Delete: () => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+    </svg>
+  ),
+  More: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill={C.text2}>
+      <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+    </svg>
+  ),
+  Filter: () => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="rgba(0,0,0,0.7)">
+      <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+    </svg>
+  ),
+};
+
+/* ── Status Badge ── */
+function StatusBadge({ status }) {
+  const cfg = statusConfig[status];
+  return (
+    <span style={{
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: 12,
+      fontWeight: 500,
+      color: cfg?.color,
+    }}>
+      <span style={{
+        width: 8,
+        height: 8,
+        borderRadius: '50%',
+        backgroundColor: cfg?.color,
+        display: 'inline-block',
+      }} />
+      {cfg?.label}
+    </span>
+  );
+}
+
+/* ── Role Filter ── */
+function RoleFilter({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const options = ['All Roles', 'Doctor', 'Nurse'];
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        height: 38, padding: '0 16px', backgroundColor: C.white, border: '1px solid #e2e8f0',
+        borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13,
+        fontWeight: 500, color: C.text1, cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = C.primary}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}>
+        <Icons.Filter /> {value}
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 999,
+          backgroundColor: C.white, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          minWidth: 150, overflow: 'hidden' }}>
+          {options.map(option => (
+            <button key={option} onClick={() => { onChange(option); setOpen(false); }} style={{
+              width: '100%', padding: '10px 16px', border: 'none', background: 'none',
+              cursor: 'pointer', fontSize: 13, fontWeight: option === value ? 700 : 400,
+              color: C.text1, textAlign: 'left', fontFamily: "'Poppins', sans-serif",
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Status Filter ── */
+function StatusFilter({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const options = ['All Status', 'Available', 'Busy', 'Off Duty'];
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        height: 38, padding: '0 16px', backgroundColor: C.white, border: '1px solid #e2e8f0',
+        borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13,
+        fontWeight: 500, color: C.text1, cursor: 'pointer', fontFamily: "'Poppins', sans-serif",
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.borderColor = C.primary}
+      onMouseLeave={(e) => e.currentTarget.style.borderColor = '#e2e8f0'}>
+        <Icons.Filter /> {value}
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', right: 0, top: '100%', marginTop: 4, zIndex: 999,
+          backgroundColor: C.white, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+          minWidth: 150, overflow: 'hidden' }}>
+          {options.map(option => (
+            <button key={option} onClick={() => { onChange(option); setOpen(false); }} style={{
+              width: '100%', padding: '10px 16px', border: 'none', background: 'none',
+              cursor: 'pointer', fontSize: 13, fontWeight: option === value ? 700 : 400,
+              color: C.text1, textAlign: 'left', fontFamily: "'Poppins', sans-serif",
+              transition: 'background 0.2s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+              {option}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Stat Card ── */
+function StatCard({ title, value, sub, icon: Icon }) {
+  return (
+    <div style={{
+      flex: 1, height: 124, backgroundColor: C.white, borderRadius: 10,
+      boxShadow: '0 2px 6px rgba(0,0,0,0.08)', padding: '22px 17px',
+      display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+      transition: 'transform 0.2s ease, box-shadow 0.2s ease', cursor: 'pointer',
+    }}
+    onMouseEnter={(e) => {
+      e.currentTarget.style.transform = 'translateY(-4px)';
+      e.currentTarget.style.boxShadow = '0 8px 16px rgba(0,0,0,0.12)';
+    }}
+    onMouseLeave={(e) => {
+      e.currentTarget.style.transform = 'translateY(0)';
+      e.currentTarget.style.boxShadow = '0 2px 6px rgba(0,0,0,0.08)';
+    }}>
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'rgba(0,0,0,0.7)', lineHeight: '16px' }}>{title}</div>
+        <div style={{ fontSize: 32, fontWeight: 700, color: '#000', lineHeight: '38px', marginTop: 6 }}>{value}</div>
+        <div style={{ fontSize: 10, fontWeight: 400, color: C.text2, marginTop: 6 }}>{sub}</div>
+      </div>
+      <div style={{ marginTop: 6 }}><Icon /></div>
+    </div>
+  );
+}
+
+/* ── Staff Table Row with Edit/Delete ── */
+function StaffRow({ staff, index, onEdit, onDelete }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+
+  useEffect(() => {
+    const handler = (e) => { 
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div style={{
+      backgroundColor: C.white,
+      borderTop: index === 0 ? 'none' : '1px solid rgba(0,0,0,0.06)',
+      padding: '0 41px', 
+      minHeight: 82,
+      display: 'grid', 
+      gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
+      alignItems: 'center',
+      transition: 'background-color 0.2s ease',
+    }}
+    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fafbfc'}
+    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = C.white}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: C.text2 }}>{index + 1}</div>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: C.text1 }}>{staff.name}</div>
+        <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2 }}>{staff.staffId}</div>
+      </div>
+      <div>
+        <span style={{
+          backgroundColor: staff.role === 'Doctor' ? C.purpleBg : C.greenBg,
+          padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
+          color: staff.role === 'Doctor' ? C.purple : C.green,
+        }}>{staff.role}</span>
+      </div>
+      <div style={{ fontSize: 13, color: C.text1 }}>{staff.specialization}</div>
+      <div style={{ fontSize: 12, color: C.text2 }}>{staff.email}</div>
+      <div style={{ fontSize: 13, color: C.text1 }}>{staff.contact}</div>
+      <div><StatusBadge status={staff.availability} /></div>
+      <div ref={menuRef} style={{ position: 'relative' }}>
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            cursor: 'pointer', 
+            padding: 8, 
+            borderRadius: 4, 
+            display: 'flex', 
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+          }}
+        >
+          <Icons.More />
+        </button>
+        {menuOpen && (
+          <div style={{
+            position: 'fixed',
+            right: 'auto',
+            left: menuRef.current ? menuRef.current.getBoundingClientRect().right - 120 : 'auto',
+            top: menuRef.current ? menuRef.current.getBoundingClientRect().bottom + 5 : 'auto',
+            zIndex: 9999,
+            backgroundColor: C.white,
+            borderRadius: 8,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            minWidth: 120,
+            overflow: 'hidden',
+            border: '1px solid #e2e8f0',
+          }}>
+            <button
+              onClick={() => { 
+                onEdit(staff); 
+                setMenuOpen(false); 
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+                color: C.text1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                textAlign: 'left',
+                fontFamily: "'Poppins', sans-serif",
+                transition: 'background-color 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Icons.Edit /> Edit
+            </button>
+            <button
+              onClick={() => { 
+                onDelete(staff); 
+                setMenuOpen(false); 
+              }}
+              style={{
+                width: '100%',
+                padding: '10px 16px',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                textAlign: 'left',
+                fontFamily: "'Poppins', sans-serif",
+                transition: 'background-color 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fff5f5'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            >
+              <Icons.Delete /> Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── MAIN COMPONENT ── */
+export default function MedicalStaff() {
+  const [staff, setStaff] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState('All Roles');
+  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingStaff, setEditingStaff] = useState(null);
+
+  // Get current logged-in user role
+  const getCurrentUserRole = () => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      try {
+        const userData = JSON.parse(user);
+        return userData.role;
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+
+  const currentUserRole = getCurrentUserRole();
+  const isDoctor = currentUserRole === 'DOCTOR';
+
+  // Fetch users from user_account table
+  // Fetch staff from medical_staff table (not user_account)
+const fetchStaff = async () => {
+  setLoading(true);
+  try {
+    // ✅ CHANGE THIS - use getAllStaff instead of getAllUsers
+    const staffData = await staffService.getAllStaff();
+    console.log('Fetched staff from medical_staff:', staffData);
+    
+    const formattedStaff = staffData.map(staff => ({
+      id: staff.staffID,           // staffID from medical_staff
+      staffId: `STAFF-${String(staff.staffID).padStart(3, '0')}`,
+      name: `${staff.fname || ''} ${staff.lname || ''}`.trim() || 'No name',
+      role: staff.role || 'Staff',
+      specialization: staff.specialty || 'General',
+      email: staff.email || 'No email',
+      contact: staff.contactNo || 'Not provided',
+      availability: staff.availability || 'Available',
+    }));
+    
+    setStaff(formattedStaff);
+  } catch (error) {
+    console.error('Error fetching staff:', error);
+  } finally {
+    setLoading(false);
+  }
+};
+  useEffect(() => {
+    fetchStaff();
+  }, []);
+
+  // Filter staff with case-insensitive matching
+  const filteredStaff = staff.filter(member => {
+    const matchesSearch = member.name.toLowerCase().includes(search.toLowerCase()) ||
+                         member.specialization.toLowerCase().includes(search.toLowerCase()) ||
+                         member.role.toLowerCase().includes(search.toLowerCase());
+    const matchesRole = roleFilter === 'All Roles' || member.role?.toLowerCase() === roleFilter.toLowerCase();
+    const matchesStatus = statusFilter === 'All Status' || member.availability?.toLowerCase() === statusFilter.toLowerCase();
+    return matchesSearch && matchesRole && matchesStatus;
+  });
+
+  // Stats with case-insensitive counting
+  const stats = [
+    { title: 'Total Staff', value: staff.length, sub: 'All medical staff', icon: Icons.Users },
+    { title: 'Doctors', value: staff.filter(s => s.role?.toLowerCase() === 'doctor').length, sub: 'Medical Physicians', icon: Icons.DoctorIcon },
+    { title: 'Nurses', value: staff.filter(s => s.role?.toLowerCase() === 'nurse').length, sub: 'Nursing staff', icon: Icons.NurseIcon },
+    { title: 'Available Now', value: staff.filter(s => s.availability?.toLowerCase() === 'available').length, sub: 'Currently active', icon: Icons.Users },
+  ];
+
+  const handleAddStaff = () => {
+    if (isDoctor) {
+      alert('Doctors cannot add staff members');
+      return;
+    }
+    setShowAddModal(true);
+  };
+
+  const handleEditStaff = (staff) => {
+    if (isDoctor) {
+      alert('Doctors cannot edit staff members');
+      return;
+    }
+    setEditingStaff(staff);
+    setShowAddModal(true);
+  };
+
+  // ✅ FIXED: Delete staff - calls backend API
+  const handleDeleteStaff = async (staff) => {
+    if (isDoctor) {
+      alert('Doctors cannot delete staff members');
+      return;
+    }
+    
+    if (window.confirm(`Are you sure you want to delete ${staff.name}?`)) {
+      try {
+        // Call the backend API to delete
+        await staffService.deleteStaff(staff.id);
+        
+        // Refresh the staff list from backend
+        await fetchStaff();
+        
+        alert('Staff member deleted successfully');
+      } catch (error) {
+        console.error('Error deleting staff:', error);
+        alert(error.response?.data || 'Failed to delete staff member');
+      }
+    }
+  };
+
+  // ✅ FIXED: Save staff (Add/Edit) - calls backend API
+  const handleSaveStaff = async (staffData) => {
+    try {
+      if (editingStaff) {
+        // Update existing staff
+        await staffService.updateStaff(editingStaff.id, staffData);
+        alert('Staff member updated successfully');
+      } else {
+        // Add new staff
+        await staffService.addStaff(staffData);
+        alert('Staff member added successfully');
+      }
+      
+      // Refresh the staff list from backend
+      await fetchStaff();
+      
+      setShowAddModal(false);
+      setEditingStaff(null);
+    } catch (error) {
+      console.error('Error saving staff:', error);
+      alert(error.response?.data || 'Failed to save staff member');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div>Loading staff data...</div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
+      <Sidebar />
+      <div style={{ flex: 1, overflow: 'auto' }}>
+        {/* Top Bar */}
+        <div style={{
+          background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
+          height: 105, padding: '0 34px', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+          flexShrink: 0, borderRadius: '0 0 10px 10px',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{
+              width: 40, height: 40, backgroundColor: C.primary, borderRadius: 10,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0, boxShadow: '0 2px 6px rgba(25,0,81,0.3)',
+            }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#fff">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 26, fontWeight: 700, color: C.primary, lineHeight: '28px' }}>
+                Staff Management
+              </div>
+              <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 400, color: 'rgba(25,0,81,0.65)', lineHeight: '16px', marginTop: 6 }}>
+                {isDoctor ? 'View only mode' : 'Manage doctors, nurses, and medical staff'}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{
+              width: 283, height: 38, backgroundColor: C.primary, borderRadius: 8,
+              border: '0.5px solid rgba(25,0,81,0.8)', display: 'flex', alignItems: 'center',
+              padding: '0 14px', gap: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}>
+              <Icons.Search />
+              <input type="text" placeholder="Search staff..." value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 13 }} />
+            </div>
+
+            {!isDoctor && (
+              <button onClick={handleAddStaff} style={{
+                height: 38, padding: '0 20px', backgroundColor: C.primary, border: 'none',
+                borderRadius: 8, color: C.white, fontSize: 13, fontWeight: 600,
+                fontFamily: "'Poppins', sans-serif", display: 'flex', alignItems: 'center', gap: 8,
+                cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = C.primaryLight;
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = C.primary;
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}>
+                <Icons.Add /> Add Staff
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Stat Cards */}
+        <div style={{ display: 'flex', gap: 20, padding: '20px 34px 0' }}>
+          {stats.map((stat) => <StatCard key={stat.title} {...stat} />)}
+        </div>
+
+        {/* Staff Directory Table */}
+        <div style={{
+          margin: '20px 34px 34px', backgroundColor: C.primary, borderRadius: 10,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.12)', overflow: 'hidden',
+        }}>
+          <div style={{ padding: '26px 27px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 20, fontWeight: 700, color: '#fff', lineHeight: '24px' }}>
+                Staff Directory
+              </div>
+              <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 400, color: 'rgba(255,255,255,0.85)', lineHeight: '18px', marginTop: 10 }}>
+                {filteredStaff.length} staff members found
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <RoleFilter value={roleFilter} onChange={setRoleFilter} />
+              <StatusFilter value={statusFilter} onChange={setStatusFilter} />
+            </div>
+          </div>
+
+          {/* Column Labels */}
+          <div style={{ backgroundColor: '#f9fafb', borderTop: '1px solid rgba(255,255,255,0.2)' }}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
+              padding: '12px 41px', alignItems: 'center',
+            }}>
+              {['#', 'STAFF', 'ROLE', 'SPECIALIZATION', 'EMAIL', 'CONTACT', 'AVAILABILITY', ''].map((h, i) => (
+                <div key={i} style={{ fontSize: 12, fontWeight: 700, color: C.text2, fontFamily: "'Poppins', sans-serif" }}>{h}</div>
+              ))}
+            </div>
+          </div>
+
+          {/* Rows */}
+          {filteredStaff.map((s, idx) => (
+            <StaffRow
+              key={s.id}
+              staff={s}
+              index={idx}
+              onEdit={handleEditStaff}
+              onDelete={handleDeleteStaff}
+            />
+          ))}
+
+          {filteredStaff.length === 0 && (
+            <div style={{ padding: '48px', textAlign: 'center', backgroundColor: C.white }}>
+              <div style={{ fontSize: 13, color: C.text2, fontFamily: "'Poppins', sans-serif" }}>No staff members found</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Add/Edit Modal */}
+      {showAddModal && (
+        <StaffModal
+          staff={editingStaff}
+          onClose={() => {
+            setShowAddModal(false);
+            setEditingStaff(null);
+          }}
+          onSave={handleSaveStaff}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ── Staff Modal Component ── */
+function StaffModal({ staff, onClose, onSave }) {
+  const [formData, setFormData] = useState({
+    name: staff?.name || '',
+    role: staff?.role || 'Doctor',
+    specialization: staff?.specialization || '',
+    email: staff?.email || '',
+    contact: staff?.contact || '',
+    availability: staff?.availability || 'Available',
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.5)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)',
+    }}>
+      <div style={{
+        backgroundColor: C.white, borderRadius: 16, width: 550, maxWidth: '90%',
+        maxHeight: '90vh', overflow: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        fontFamily: "'Poppins', sans-serif",
+      }}>
+        <div style={{ padding: '24px 28px', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.text1 }}>
+            {staff ? 'Edit Staff Member' : 'Add New Staff'}
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Full Name *</label>
+              <input type="text" required value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }}
+                onFocus={(e) => e.target.style.borderColor = C.primary}
+                onBlur={(e) => e.target.style.borderColor = '#e2e8f0'} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Role *</label>
+                <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif", backgroundColor: C.white }}>
+                  <option value="Doctor">Doctor</option>
+                  <option value="Nurse">Nurse</option>
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Specialization *</label>
+                <input type="text" required value={formData.specialization}
+                  onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+                  style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }} />
+              </div>
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Email *</label>
+              <input type="email" required value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Contact Number *</label>
+              <input type="tel" required value={formData.contact}
+                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif" }} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Availability</label>
+              <select value={formData.availability} onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
+                style={{ width: '100%', height: 42, border: '1px solid #e2e8f0', borderRadius: 8, padding: '0 14px', fontSize: 13, color: C.text1, outline: 'none', fontFamily: "'Poppins', sans-serif", backgroundColor: C.white }}>
+                <option value="Available">Available</option>
+                <option value="Busy">Busy</option>
+                <option value="Off Duty">Off Duty</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ padding: '16px 28px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+            <button type="button" onClick={onClose} style={{ height: 40, padding: '0 24px', border: '1px solid #e2e8f0', borderRadius: 8, backgroundColor: C.white, fontSize: 13, fontWeight: 600, color: C.text2, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
+              Cancel
+            </button>
+            <button type="submit" style={{ height: 40, padding: '0 24px', border: 'none', borderRadius: 8, backgroundColor: C.primary, color: C.white, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: "'Poppins', sans-serif" }}>
+              {staff ? 'Update Staff' : 'Add Staff'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

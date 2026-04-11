@@ -18,8 +18,8 @@ const OAuth2Redirect = () => {
           localStorage.setItem('token', response.data.token);
           localStorage.setItem('user', JSON.stringify(response.data.user));
           
-          // Redirect to dashboard
-          navigate('/dashboard');
+          // CHANGE THIS - redirect to patient-queue instead of dashboard
+          navigate('/patient-queue');
         } else {
           navigate('/login?error=true');
         }
@@ -64,7 +64,7 @@ const OAuth2Redirect = () => {
           marginBottom: '30px',
           fontSize: '0.95rem'
         }}>
-          Please wait while we redirect you to your dashboard...
+          Please wait while we redirect you to the patient queue...
         </p>
         
         <div style={{
