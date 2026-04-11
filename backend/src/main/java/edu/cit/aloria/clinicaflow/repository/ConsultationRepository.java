@@ -14,6 +14,7 @@ public interface ConsultationRepository extends JpaRepository<ConsultationEntity
     List<ConsultationEntity> findByDoctorName(String doctorName);
     
     List<ConsultationEntity> findByUserAccount_AccountID(int accountId);
+    boolean existsByDoctorName(String doctorName);
     
     long countByConsultationDate(LocalDate date);
 }

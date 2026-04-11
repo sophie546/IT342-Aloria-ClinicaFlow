@@ -98,37 +98,4 @@ public class ConsultationController {
             return new ResponseEntity<>("Error deleting consultation", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
-
-    // UPDATE
-@PutMapping("/update/{id}")
-public ResponseEntity<ConsultationEntity> updateConsultation(@PathVariable int id, @RequestBody ConsultationEntity consultation) {
-    try {
-        ConsultationEntity updated = consultationService.updateConsultation(id, consultation);
-        return new ResponseEntity<>(updated, HttpStatus.OK);
-    } catch (RuntimeException e) {
-        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-    }
-}
-
-        // UPDATE
-    @PutMapping("/update/{id}")
-    public ResponseEntity<ConsultationEntity> updateConsultation(@PathVariable int id, @RequestBody ConsultationEntity consultation) {
-        try {
-            ConsultationEntity updated = consultationService.updateConsultation(id, consultation);
-            return new ResponseEntity<>(updated, HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
-        }
-    }
-
-    // DELETE
-    @DeleteMapping("/delete/{id}")
-    public ResponseEntity<String> deleteConsultation(@PathVariable int id) {
-        try {
-            consultationService.deleteConsultation(id);
-            return new ResponseEntity<>("Consultation deleted successfully", HttpStatus.OK);
-        } catch (RuntimeException e) {
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.NOT_FOUND);
-        }
-    }
 }

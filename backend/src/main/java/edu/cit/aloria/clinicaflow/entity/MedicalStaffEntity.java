@@ -29,7 +29,11 @@ public class MedicalStaffEntity {
     private String specialty;
 
     @Column(name = "availability", length = 20)
-    private String availability = "Available";  // ADD THIS FIELD
+    private String availability = "Available";
+
+    // ✅ ADD EMAIL FIELD
+    @Column(name = "email", length = 100)
+    private String email;
 
     @OneToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "account_id", referencedColumnName = "accountid")
@@ -96,13 +100,21 @@ public class MedicalStaffEntity {
         this.specialty = specialty;
     }
 
-    // ADD THIS GETTER AND SETTER
     public String getAvailability() {
         return availability;
     }
 
     public void setAvailability(String availability) {
         this.availability = availability;
+    }
+
+    // ✅ ADD EMAIL GETTER AND SETTER
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public UserAccountEntity getUserAccount() {
@@ -128,6 +140,7 @@ public class MedicalStaffEntity {
                 ", contactNo='" + contactNo + '\'' +
                 ", specialty='" + specialty + '\'' +
                 ", availability='" + availability + '\'' +
+                ", email='" + email + '\'' +
                 '}';
     }
 }

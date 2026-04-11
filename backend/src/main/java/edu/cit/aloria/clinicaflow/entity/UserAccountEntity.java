@@ -29,23 +29,33 @@ public class UserAccountEntity {
 
     @Column(name = "picture")
     private String picture;
-    
+
     @Column(name = "provider")
     private String provider;
-    
+
     @Column(name = "supabase_user_id", unique = true)
     private String supabaseUserId;
-    
+
     @Column(name = "email_verified", nullable = false)
     private boolean emailVerified = false;
-    
+
     @Column(name = "created_date")
     @Temporal(TemporalType.TIMESTAMP)
     private Date createdDate;
-    
+
     @Column(name = "last_login")
     @Temporal(TemporalType.TIMESTAMP)
     private Date lastLogin;
+
+    // ✅ NEW FIELDS FOR MEDICAL STAFF
+    @Column(name = "specialty")
+    private String specialty;
+
+    @Column(name = "availability")
+    private String availability;
+
+    @Column(name = "contact_no")
+    private String contactNo;
 
     // Constructors
     public UserAccountEntity() {}
@@ -59,6 +69,9 @@ public class UserAccountEntity {
         this.createdDate = new Date();
         this.lastLogin = new Date();
         this.emailVerified = false;
+        this.availability = "Available";
+        this.specialty = "General";
+        this.contactNo = "Not provided";
     }
 
     // Getters and Setters
@@ -125,7 +138,7 @@ public class UserAccountEntity {
     public void setProvider(String provider) {
         this.provider = provider;
     }
-    
+
     public String getSupabaseUserId() {
         return supabaseUserId;
     }
@@ -133,11 +146,11 @@ public class UserAccountEntity {
     public void setSupabaseUserId(String supabaseUserId) {
         this.supabaseUserId = supabaseUserId;
     }
-    
+
     public boolean isEmailVerified() {
         return emailVerified;
     }
-    
+
     public void setEmailVerified(boolean emailVerified) {
         this.emailVerified = emailVerified;
     }
@@ -156,5 +169,30 @@ public class UserAccountEntity {
 
     public void setLastLogin(Date lastLogin) {
         this.lastLogin = lastLogin;
+    }
+
+    // ✅ NEW GETTERS AND SETTERS
+    public String getSpecialty() {
+        return specialty;
+    }
+
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
+    }
+
+    public String getAvailability() {
+        return availability;
+    }
+
+    public void setAvailability(String availability) {
+        this.availability = availability;
+    }
+
+    public String getContactNo() {
+        return contactNo;
+    }
+
+    public void setContactNo(String contactNo) {
+        this.contactNo = contactNo;
     }
 }

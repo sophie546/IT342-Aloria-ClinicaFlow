@@ -12,8 +12,7 @@ import edu.cit.aloria.clinicaflow.entity.MedicalStaffEntity;
 public interface MedicalStaffRepository extends JpaRepository<MedicalStaffEntity, Integer> {
     
     Optional<MedicalStaffEntity> findByUserAccount_AccountID(int accountId);
-    
     List<MedicalStaffEntity> findByRole(String role);
-    
+    Optional<MedicalStaffEntity> findByEmail(String email);
     List<MedicalStaffEntity> findBySpecialty(String specialty);
 }

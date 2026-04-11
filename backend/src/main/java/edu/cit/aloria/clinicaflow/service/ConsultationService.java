@@ -42,33 +42,10 @@ public class ConsultationService {
         return consultationRepository.countByConsultationDate(LocalDate.now());
     }
 
-        public ConsultationEntity updateConsultation(int id, ConsultationEntity consultationDetails) {
-            ConsultationEntity consultation = consultationRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Consultation not found with id: " + id));
-            
-            consultation.setPatientName(consultationDetails.getPatientName());
-            consultation.setAge(consultationDetails.getAge());
-            consultation.setGender(consultationDetails.getGender());
-            consultation.setDoctorName(consultationDetails.getDoctorName());
-            consultation.setConsultationDate(consultationDetails.getConsultationDate());
-            consultation.setSymptoms(consultationDetails.getSymptoms());
-            consultation.setDiagnosis(consultationDetails.getDiagnosis());
-            consultation.setPrescription(consultationDetails.getPrescription());
-            consultation.setRemarks(consultationDetails.getRemarks());
-            
-            return consultationRepository.save(consultation);
-        }
-
-        public void deleteConsultation(int id) {
-            ConsultationEntity consultation = consultationRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Consultation not found with id: " + id));
-            consultationRepository.delete(consultation);
-        }
-
-        public ConsultationEntity updateConsultation(int id, ConsultationEntity consultationDetails) {
+    public ConsultationEntity updateConsultation(int id, ConsultationEntity consultationDetails) {
         ConsultationEntity consultation = consultationRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Consultation not found with id: " + id));
-        
+
         consultation.setPatientName(consultationDetails.getPatientName());
         consultation.setAge(consultationDetails.getAge());
         consultation.setGender(consultationDetails.getGender());
@@ -78,7 +55,7 @@ public class ConsultationService {
         consultation.setDiagnosis(consultationDetails.getDiagnosis());
         consultation.setPrescription(consultationDetails.getPrescription());
         consultation.setRemarks(consultationDetails.getRemarks());
-        
+
         return consultationRepository.save(consultation);
     }
 
