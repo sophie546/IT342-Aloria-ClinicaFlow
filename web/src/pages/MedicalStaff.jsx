@@ -238,7 +238,11 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
   const menuRef = useRef(null);
 
   useEffect(() => {
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    const handler = (e) => { 
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -247,8 +251,10 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
     <div style={{
       backgroundColor: C.white,
       borderTop: index === 0 ? 'none' : '1px solid rgba(0,0,0,0.06)',
-      padding: '0 41px', height: 82,
-      display: 'grid', gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
+      padding: '0 41px', 
+      minHeight: 82,
+      display: 'grid', 
+      gridTemplateColumns: '60px 1.5fr 100px 1.5fr 1.8fr 1.2fr 110px 50px',
       alignItems: 'center',
       transition: 'background-color 0.2s ease',
     }}
@@ -273,23 +279,55 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
       <div ref={menuRef} style={{ position: 'relative' }}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center' }}
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            cursor: 'pointer', 
+            padding: 8, 
+            borderRadius: 4, 
+            display: 'flex', 
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+          }}
         >
           <Icons.More />
         </button>
         {menuOpen && (
           <div style={{
-            position: 'absolute', right: 0, top: '100%', zIndex: 999,
-            backgroundColor: C.white, borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
-            minWidth: 120, overflow: 'hidden',
+            position: 'fixed',
+            right: 'auto',
+            left: menuRef.current ? menuRef.current.getBoundingClientRect().right - 120 : 'auto',
+            top: menuRef.current ? menuRef.current.getBoundingClientRect().bottom + 5 : 'auto',
+            zIndex: 9999,
+            backgroundColor: C.white,
+            borderRadius: 8,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            minWidth: 120,
+            overflow: 'hidden',
+            border: '1px solid #e2e8f0',
           }}>
             <button
-              onClick={() => { onEdit(staff); setMenuOpen(false); }}
+              onClick={() => { 
+                onEdit(staff); 
+                setMenuOpen(false); 
+              }}
               style={{
-                width: '100%', padding: '10px 16px', border: 'none', background: 'none',
-                cursor: 'pointer', fontSize: 13, fontWeight: 500, color: C.text1,
-                display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left',
+                width: '100%',
+                padding: '10px 16px',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+                color: C.text1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                textAlign: 'left',
                 fontFamily: "'Poppins', sans-serif",
+                transition: 'background-color 0.2s ease',
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -297,12 +335,25 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
               <Icons.Edit /> Edit
             </button>
             <button
-              onClick={() => { onDelete(staff); setMenuOpen(false); }}
+              onClick={() => { 
+                onDelete(staff); 
+                setMenuOpen(false); 
+              }}
               style={{
-                width: '100%', padding: '10px 16px', border: 'none', background: 'none',
-                cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#ef4444',
-                display: 'flex', alignItems: 'center', gap: 8, textAlign: 'left',
+                width: '100%',
+                padding: '10px 16px',
+                border: 'none',
+                background: 'none',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontWeight: 500,
+                color: '#ef4444',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                textAlign: 'left',
                 fontFamily: "'Poppins', sans-serif",
+                transition: 'background-color 0.2s ease',
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fff5f5'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -344,34 +395,32 @@ export default function MedicalStaff() {
   const isDoctor = currentUserRole === 'DOCTOR';
 
   // Fetch users from user_account table
-  const fetchStaff = async () => {
-    setLoading(true);
-    try {
-      const users = await staffService.getAllUsers();
-      console.log('Fetched users from user_account:', users);
-      
-      const formattedStaff = users.map(user => ({
-        id: user.accountID,
-        staffId: `STAFF-${String(user.accountID).padStart(3, '0')}`,
-        name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || 'No name',
-        role: user.role || 'Staff',
-        specialization: user.specialty || 'General',
-        email: user.email || 'No email',
-        contact: user.contactNo || 'Not provided',
-        availability: user.availability || 'Available',
-        picture: user.picture,
-        provider: user.provider,
-        lastLogin: user.lastLogin
-      }));
-      
-      setStaff(formattedStaff);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Fetch staff from medical_staff table (not user_account)
+const fetchStaff = async () => {
+  setLoading(true);
+  try {
+    // ✅ CHANGE THIS - use getAllStaff instead of getAllUsers
+    const staffData = await staffService.getAllStaff();
+    console.log('Fetched staff from medical_staff:', staffData);
+    
+    const formattedStaff = staffData.map(staff => ({
+      id: staff.staffID,           // staffID from medical_staff
+      staffId: `STAFF-${String(staff.staffID).padStart(3, '0')}`,
+      name: `${staff.fname || ''} ${staff.lname || ''}`.trim() || 'No name',
+      role: staff.role || 'Staff',
+      specialization: staff.specialty || 'General',
+      email: staff.email || 'No email',
+      contact: staff.contactNo || 'Not provided',
+      availability: staff.availability || 'Available',
+    }));
+    
+    setStaff(formattedStaff);
+  } catch (error) {
+    console.error('Error fetching staff:', error);
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchStaff();
   }, []);
@@ -411,25 +460,51 @@ export default function MedicalStaff() {
     setShowAddModal(true);
   };
 
-  const handleDeleteStaff = (staff) => {
+  // ✅ FIXED: Delete staff - calls backend API
+  const handleDeleteStaff = async (staff) => {
     if (isDoctor) {
       alert('Doctors cannot delete staff members');
       return;
     }
     
     if (window.confirm(`Are you sure you want to delete ${staff.name}?`)) {
-      setStaff(staff.filter(s => s.id !== staff.id));
+      try {
+        // Call the backend API to delete
+        await staffService.deleteStaff(staff.id);
+        
+        // Refresh the staff list from backend
+        await fetchStaff();
+        
+        alert('Staff member deleted successfully');
+      } catch (error) {
+        console.error('Error deleting staff:', error);
+        alert(error.response?.data || 'Failed to delete staff member');
+      }
     }
   };
 
-  const handleSaveStaff = (staffData) => {
-    if (editingStaff) {
-      setStaff(staff.map(s => s.id === editingStaff.id ? { ...staffData, id: s.id, staffId: s.staffId } : s));
-    } else {
-      setStaff([...staff, { ...staffData, id: staff.length + 1, staffId: `STAFF-${String(staff.length + 1).padStart(3, '0')}` }]);
+  // ✅ FIXED: Save staff (Add/Edit) - calls backend API
+  const handleSaveStaff = async (staffData) => {
+    try {
+      if (editingStaff) {
+        // Update existing staff
+        await staffService.updateStaff(editingStaff.id, staffData);
+        alert('Staff member updated successfully');
+      } else {
+        // Add new staff
+        await staffService.addStaff(staffData);
+        alert('Staff member added successfully');
+      }
+      
+      // Refresh the staff list from backend
+      await fetchStaff();
+      
+      setShowAddModal(false);
+      setEditingStaff(null);
+    } catch (error) {
+      console.error('Error saving staff:', error);
+      alert(error.response?.data || 'Failed to save staff member');
     }
-    setShowAddModal(false);
-    setEditingStaff(null);
   };
 
   if (loading) {

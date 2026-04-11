@@ -202,13 +202,17 @@ function StatCard({ title, value, sub, icon: Icon }) {
   );
 }
 
-/* ── Patient Table Row ── */
+/* ── Patient Table Row with Fixed Dropdown ── */
 function PatientRow({ patient, index, onEdit, onDelete }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
   useEffect(() => {
-    const handler = (e) => { if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false); };
+    const handler = (e) => { 
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -218,7 +222,7 @@ function PatientRow({ patient, index, onEdit, onDelete }) {
       backgroundColor: C.white,
       borderTop: index === 0 ? 'none' : '1px solid rgba(0,0,0,0.06)',
       padding: '0 41px',
-      height: 72,
+      minHeight: 72,
       display: 'grid',
       gridTemplateColumns: '60px 1.5fr 80px 2fr 1.5fr 1.5fr 50px',
       alignItems: 'center',
@@ -237,24 +241,40 @@ function PatientRow({ patient, index, onEdit, onDelete }) {
       <div ref={menuRef} style={{ position: 'relative' }}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex', alignItems: 'center' }}
+          style={{ 
+            background: 'none', 
+            border: 'none', 
+            cursor: 'pointer', 
+            padding: 8, 
+            borderRadius: 4, 
+            display: 'flex', 
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 32,
+            height: 32,
+          }}
         >
           <Icons.More />
         </button>
         {menuOpen && (
           <div style={{
-            position: 'absolute',
-            right: 0,
-            top: '100%',
-            zIndex: 999,
+            position: 'fixed',
+            right: 'auto',
+            left: menuRef.current ? menuRef.current.getBoundingClientRect().right - 120 : 'auto',
+            top: menuRef.current ? menuRef.current.getBoundingClientRect().bottom + 5 : 'auto',
+            zIndex: 9999,
             backgroundColor: C.white,
             borderRadius: 8,
-            boxShadow: '0 4px 16px rgba(0,0,0,0.15)',
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
             minWidth: 120,
             overflow: 'hidden',
+            border: '1px solid #e2e8f0',
           }}>
             <button
-              onClick={() => { onEdit(patient); setMenuOpen(false); }}
+              onClick={() => { 
+                onEdit(patient); 
+                setMenuOpen(false); 
+              }}
               style={{
                 width: '100%',
                 padding: '10px 16px',
@@ -269,6 +289,7 @@ function PatientRow({ patient, index, onEdit, onDelete }) {
                 gap: 8,
                 textAlign: 'left',
                 fontFamily: "'Poppins', sans-serif",
+                transition: 'background-color 0.2s ease',
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f5f6fa'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
@@ -276,7 +297,10 @@ function PatientRow({ patient, index, onEdit, onDelete }) {
               <Icons.Edit /> Edit
             </button>
             <button
-              onClick={() => { onDelete(patient); setMenuOpen(false); }}
+              onClick={() => { 
+                onDelete(patient); 
+                setMenuOpen(false); 
+              }}
               style={{
                 width: '100%',
                 padding: '10px 16px',
@@ -291,6 +315,7 @@ function PatientRow({ patient, index, onEdit, onDelete }) {
                 gap: 8,
                 textAlign: 'left',
                 fontFamily: "'Poppins', sans-serif",
+                transition: 'background-color 0.2s ease',
               }}
               onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fff5f5'}
               onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
