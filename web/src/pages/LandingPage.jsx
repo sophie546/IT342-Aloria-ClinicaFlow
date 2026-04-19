@@ -24,13 +24,21 @@ function useInView(threshold = 0.15) {
 function LandingPage() {
   const navigate = useNavigate();
   const [visible, setVisible] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [modalData, setModalData] = useState({
+    firstName: '',
+    lastName: '',
+    age: '',
+    gender: '',
+    contactNumber: '',
+    address: '',
+  });
 
-  // Section refs for nav scroll
   const aboutRef = useRef(null);
   const featuresRef = useRef(null);
   const benefitsRef = useRef(null);
 
-  // Scroll animation refs
   const [whyRef, whyInView] = useInView();
   const [feat1Ref, feat1InView] = useInView();
   const [feat2Ref, feat2InView] = useInView();
@@ -48,6 +56,41 @@ function LandingPage() {
     { label: 'Benefits',     ref: benefitsRef },
   ];
 
+  const openModal = () => {
+    setShowModal(true);
+    setTimeout(() => setModalVisible(true), 10);
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+    setTimeout(() => setShowModal(false), 300);
+  };
+
+  const handleModalChange = (e) => {
+    setModalData({ ...modalData, [e.target.name]: e.target.value });
+  };
+
+  const handleModalSubmit = (e) => {
+    e.preventDefault();
+    const fullName = `${modalData.firstName} ${modalData.lastName}`;
+    const queueNumber = Math.floor(Math.random() * 100) + 1;
+    const patientData = {
+      fullName,
+      age: modalData.age,
+      address: modalData.address,
+      contactNumber: modalData.contactNumber,
+      gender: modalData.gender,
+      queueNumber,
+      arrivalTime: new Date().toLocaleTimeString(),
+      status: 'waiting',
+      assignedDoctor: 'Dr. Cruz',
+    };
+    localStorage.setItem('patientData', JSON.stringify(patientData));
+    localStorage.setItem('queueNumber', queueNumber);
+    closeModal();
+    setTimeout(() => navigate('/patient-waiting'), 300);
+  };
+
   useEffect(() => {
     const link = document.createElement('link');
     link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap';
@@ -64,14 +107,6 @@ function LandingPage() {
         from { opacity: 0; }
         to   { opacity: 1; }
       }
-      @keyframes slideInLeft {
-        from { opacity: 0; transform: translateX(-40px); }
-        to   { opacity: 1; transform: translateX(0); }
-      }
-      @keyframes slideInRight {
-        from { opacity: 0; transform: translateX(40px); }
-        to   { opacity: 1; transform: translateX(0); }
-      }
       @keyframes float {
         0%, 100% { transform: translateX(-50%) translateY(0px); }
         50%       { transform: translateX(-50%) translateY(-10px); }
@@ -80,7 +115,7 @@ function LandingPage() {
       .hero-heading { animation: fadeUp  0.7s ease both; animation-delay: 0.1s; }
       .hero-desc    { animation: fadeUp  0.7s ease both; animation-delay: 0.25s; }
       .hero-btn     { animation: fadeUp  0.7s ease both; animation-delay: 0.4s; }
-      .hero-card    { animation: slideInRight 0.8s ease both; animation-delay: 0.2s; }
+      .hero-card    { animation: fadeUp  0.8s ease both; animation-delay: 0.2s; }
       .doctor-float {
         animation: float 4s ease-in-out infinite;
         width: 80%;
@@ -116,15 +151,9 @@ function LandingPage() {
       }
       .nav-link:hover { color: #2d0a6e; }
       .nav-link:hover::after { width: 100%; }
-      .feature-img {
-        transition: transform 0.35s ease;
-      }
-      .feature-img:hover {
-        transform: scale(1.06) rotate(-1deg);
-      }
-      .feature-img-right:hover {
-        transform: scale(1.06) rotate(1deg);
-      }
+      .feature-img { transition: transform 0.35s ease; }
+      .feature-img:hover { transform: scale(1.06) rotate(-1deg); }
+      .feature-img-right:hover { transform: scale(1.06) rotate(1deg); }
     `;
     document.head.appendChild(style);
 
@@ -159,6 +188,20 @@ function LandingPage() {
     transition: `opacity 0.7s ease ${delay}, transform 0.7s ease ${delay}`,
   });
 
+  const inputStyle = {
+    width: '100%', padding: '0.8rem 1rem',
+    border: '1.5px solid #e0e0e0', borderRadius: '12px',
+    fontSize: '0.88rem', fontFamily: "'Inter', sans-serif",
+    outline: 'none', backgroundColor: '#f8f9fa',
+    boxSizing: 'border-box', transition: 'all 0.2s',
+  };
+
+  const labelStyle = {
+    display: 'block', marginBottom: '0.45rem',
+    fontSize: '0.82rem', fontWeight: 600,
+    color: '#190051', fontFamily: "'Inter', sans-serif",
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -172,36 +215,24 @@ function LandingPage() {
 
       {/* ── NAVBAR ── */}
       <nav style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '1rem 3rem',
         background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
         boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
+        position: 'sticky', top: 0, zIndex: 100,
         borderBottom: '1px solid rgba(0,0,0,0.15)',
         backdropFilter: 'blur(8px)',
       }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer',
-          paddingLeft: 'calc(5rem + (100% - 1300px)/2 + 0px)',
-        }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', paddingLeft: 'calc(5rem + (100% - 1300px)/2 + 0px)' }}>
           <div style={{ width: '40px', height: '40px', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
             <img src={logo} alt="ClinicaFlow Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <span style={{ fontFamily: "'Inter', sans-serif", fontSize: '1.2rem', fontWeight: 800, color: '#190051', display: 'block', lineHeight: '1.2' }}>ClinicaFlow</span>
         </div>
 
-        {/* Nav Links with scroll */}
         <div style={{ display: 'flex', gap: '3rem', marginRight: 'auto', marginLeft: '15rem' }}>
           {navLinks.map(({ label, ref }) => (
-            <span
-              key={label}
-              className="nav-link"
-              onClick={() => scrollTo(ref)}
-            >{label}</span>
+            <span key={label} className="nav-link" onClick={() => scrollTo(ref)}>{label}</span>
           ))}
         </div>
 
@@ -270,21 +301,12 @@ function LandingPage() {
             fontSize: '1rem', fontWeight: 600, cursor: 'pointer',
             fontFamily: "'Inter', sans-serif", transition: 'all 0.25s',
           }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #2d0a6e 0%, #190051 50%, #2d0a6e 100%)';
-            e.currentTarget.style.transform = 'translateY(-3px)';
-            e.currentTarget.style.boxShadow = '0 10px 24px rgba(25,0,81,0.3)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'linear-gradient(135deg, #190051 0%, #2d0a6e 50%, #190051 100%)';
-            e.currentTarget.style.transform = 'translateY(0)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #2d0a6e 0%, #190051 50%, #2d0a6e 100%)'; e.currentTarget.style.transform = 'translateY(-3px)'; e.currentTarget.style.boxShadow = '0 10px 24px rgba(25,0,81,0.3)'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'linear-gradient(135deg, #190051 0%, #2d0a6e 50%, #190051 100%)'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
           >
             Sign in
             <span style={{ width: '34px', height: '34px', background: '#ffffff', borderRadius: '50%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="19" height="19" viewBox="0 0 24 24" fill="none"
-                style={{ stroke: '#000000', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style={{ stroke: '#000000', strokeWidth: 2.5, strokeLinecap: 'round', strokeLinejoin: 'round' }}>
                 <path d="M5 12H19M19 12L13 6M19 12L13 18" />
               </svg>
             </span>
@@ -309,43 +331,19 @@ function LandingPage() {
           onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-6px)'; e.currentTarget.style.boxShadow = '0 32px 60px rgba(25,0,81,0.22)'; }}
           onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 24px 48px rgba(25,0,81,0.15)'; }}
           >
-            {/* Callout left */}
-            <div style={{
-              position: 'absolute', top: '55px', left: '-75px',
-              backgroundColor: '#E1DCED', borderRadius: '10px',
-              width: '180px', height: '66px', display: 'flex', alignItems: 'center',
-              fontSize: '0.6rem', color: '#444', lineHeight: '1.5',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.13)', zIndex: 5, padding: '0 0.75rem',
-              transition: 'transform 0.25s ease',
-            }}
+            <div style={{ position: 'absolute', top: '55px', left: '-75px', backgroundColor: '#E1DCED', borderRadius: '10px', width: '180px', height: '66px', display: 'flex', alignItems: 'center', fontSize: '0.6rem', color: '#444', lineHeight: '1.5', boxShadow: '0 4px 20px rgba(0,0,0,0.13)', zIndex: 5, padding: '0 0.75rem', transition: 'transform 0.25s ease' }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              Our system simplifies patient registration, queue management, and consultation tracking.
-            </div>
+            >Our system simplifies patient registration, queue management, and consultation tracking.</div>
 
-            {/* Callout right */}
-            <div style={{
-              position: 'absolute', top: '150px', right: '-95px',
-              backgroundColor: '#E1DCED', borderRadius: '10px',
-              width: '180px', height: '66px', display: 'flex', alignItems: 'center',
-              fontSize: '0.6rem', color: '#444', lineHeight: '1.5',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.13)', zIndex: 5, padding: '0 0.75rem',
-              transition: 'transform 0.25s ease',
-            }}
+            <div style={{ position: 'absolute', top: '150px', right: '-95px', backgroundColor: '#E1DCED', borderRadius: '10px', width: '180px', height: '66px', display: 'flex', alignItems: 'center', fontSize: '0.6rem', color: '#444', lineHeight: '1.5', boxShadow: '0 4px 20px rgba(0,0,0,0.13)', zIndex: 5, padding: '0 0.75rem', transition: 'transform 0.25s ease' }}
             onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.05)'; }}
             onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; }}
-            >
-              Our system simplifies patient registration, queue management, and consultation tracking.
-            </div>
+            >Our system simplifies patient registration, queue management, and consultation tracking.</div>
 
-            {/* Doctor image — float animation preserved via className */}
             <img src={doctorImg} alt="Doctor" className="doctor-float" />
 
-            <p style={{
-              fontSize: '0.65rem', color: '#2e2c2c', textAlign: 'center',
-              margin: '0 1.2rem', lineHeight: 1.4, position: 'relative', zIndex: 4,
-            }}>
+            <p style={{ fontSize: '0.65rem', color: '#2e2c2c', textAlign: 'center', margin: '0 1.2rem', lineHeight: 1.4, position: 'relative', zIndex: 4 }}>
               We are dedicated to helping clinics operate more efficiently
             </p>
           </div>
@@ -354,28 +352,19 @@ function LandingPage() {
 
       {/* ── WHY CLINICAFLOW SECTION ── */}
       <div ref={aboutRef} style={{ padding: '0 3rem 4rem 3rem', maxWidth: '1300px', margin: '6rem auto 0 auto', width: '100%', boxSizing: 'border-box' }}>
-        <div
-          ref={whyRef}
-          style={{
-            background: '#ffffff', borderRadius: '40px',
-            display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
-            overflow: 'hidden', minHeight: '260px', position: 'relative',
-            boxShadow: '0 8px 32px rgba(25,0,81,0.08)',
-            transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(25,0,81,0.14)'; }}
-          onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(25,0,81,0.08)'; }}
+        <div ref={whyRef} style={{
+          background: '#ffffff', borderRadius: '40px',
+          display: 'flex', alignItems: 'stretch', justifyContent: 'space-between',
+          overflow: 'hidden', minHeight: '260px', position: 'relative',
+          boxShadow: '0 8px 32px rgba(25,0,81,0.08)',
+          transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 16px 48px rgba(25,0,81,0.14)'; }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(25,0,81,0.08)'; }}
         >
-          <div style={{
-            flex: 1, minWidth: '280px', maxWidth: '420px',
-            padding: '2.5rem 2rem 2.5rem 3rem',
-            display: 'flex', flexDirection: 'column', justifyContent: 'center',
-            ...slideLeft(whyInView),
-          }}>
+          <div style={{ flex: 1, minWidth: '280px', maxWidth: '420px', padding: '2.5rem 2rem 2.5rem 3rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', ...slideLeft(whyInView) }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#190051', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '0.5rem', opacity: 0.5, fontFamily: "'Inter', sans-serif" }}>About Us</span>
-            <h2 style={{ fontSize: '2.6rem', fontWeight: 800, color: '#190051', margin: '0 0 0.8rem 0', lineHeight: 1.1, fontFamily: "'Inter', sans-serif", letterSpacing: '-0.02em' }}>
-              Why<br/>ClinicaFlow?
-            </h2>
+            <h2 style={{ fontSize: '2.6rem', fontWeight: 800, color: '#190051', margin: '0 0 0.8rem 0', lineHeight: 1.1, fontFamily: "'Inter', sans-serif", letterSpacing: '-0.02em' }}>Why<br/>ClinicaFlow?</h2>
             <p style={{ fontSize: '0.85rem', color: '#6b6080', lineHeight: 1.75, fontFamily: "'Inter', sans-serif", fontWeight: 400, margin: '0 0 1.5rem 0', maxWidth: '340px' }}>
               We are dedicated to helping clinics operate more efficiently through modern,
               streamlined digital tools. Our system simplifies patient registration, queue
@@ -392,13 +381,7 @@ function LandingPage() {
             </div>
           </div>
 
-          <div style={{
-            flex: 1.1,
-            background: 'linear-gradient(135deg, #edeaf5 0%, #d4cee8 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            overflow: 'hidden', position: 'relative',
-            ...slideRight(whyInView, '0.15s'),
-          }}>
+          <div style={{ flex: 1.1, background: 'linear-gradient(135deg, #edeaf5 0%, #d4cee8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', position: 'relative', ...slideRight(whyInView, '0.15s') }}>
             <div style={{ position: 'absolute', width: '260px', height: '260px', borderRadius: '50%', background: 'rgba(255,255,255,0.25)', top: '-50px', right: '-50px' }} />
             <img src={hospitalImg} alt="Hospital" style={{ width: '100%', maxWidth: '520px', height: 'auto', objectFit: 'contain', display: 'block', position: 'relative', zIndex: 1, marginBottom: '2rem' }} />
           </div>
@@ -481,11 +464,7 @@ function LandingPage() {
       </div>
 
       {/* ── SKIP THE LINE CTA SECTION ── */}
-      <div ref={ctaRef} style={{
-        width: '100%', padding: '0 0 4rem 0',
-        boxSizing: 'border-box', marginTop: '10rem', marginBottom: '3rem',
-        ...fadeUp(ctaInView),
-      }}>
+      <div ref={ctaRef} style={{ width: '100%', padding: '0 0 4rem 0', boxSizing: 'border-box', marginTop: '10rem', marginBottom: '3rem', ...fadeUp(ctaInView) }}>
         <div style={{
           background: 'linear-gradient(135deg, #190051 0%, #2d0a6e 100%)',
           padding: '5rem 3rem',
@@ -503,7 +482,7 @@ function LandingPage() {
             Register yourself in the patient queue from the comfort of your home. No need to wait at
             the clinic — we'll notify you when it's your turn.
           </p>
-          <button onClick={() => goTo('/register')} style={{
+          <button onClick={openModal} style={{
             padding: '0.8rem 3rem', background: '#ffffff',
             color: '#190051', border: 'none', borderRadius: '8px',
             fontSize: '0.9rem', fontWeight: 700, cursor: 'pointer',
@@ -518,6 +497,172 @@ function LandingPage() {
           </p>
         </div>
       </div>
+
+      {/* ── QUEUE MODAL ── */}
+      {showModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(0,0,0,0.45)',
+          opacity: modalVisible ? 1 : 0,
+          transition: 'opacity 0.3s ease',
+          backdropFilter: 'blur(4px)',
+        }}
+        onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div style={{
+            background: '#ffffff', borderRadius: '28px',
+            width: '100%', maxWidth: '480px',
+            overflow: 'hidden',
+            boxShadow: '0 32px 64px rgba(25,0,81,0.2)',
+            transform: modalVisible ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.97)',
+            transition: 'transform 0.3s ease, opacity 0.3s ease',
+            opacity: modalVisible ? 1 : 0,
+          }}>
+
+            {/* Modal Header */}
+            <div style={{ background: 'linear-gradient(135deg, #190051 0%, #2d0a6e 100%)', padding: '1.75rem 2rem', position: 'relative' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                <img src={logo} alt="logo" style={{ width: '32px', height: '32px', objectFit: 'contain', filter: 'brightness(0) invert(1)' }} />
+                <span style={{ fontSize: '1rem', fontWeight: 800, color: '#ffffff', fontFamily: "'Inter', sans-serif" }}>ClinicaFlow</span>
+              </div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#ffffff', margin: '0 0 0.25rem 0', fontFamily: "'Inter', sans-serif" }}>Join the Queue</h2>
+              <p style={{ fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)', margin: 0, fontFamily: "'Inter', sans-serif" }}>Fill in your details to get your queue number</p>
+              <button onClick={closeModal} style={{
+                position: 'absolute', top: '1.25rem', right: '1.25rem',
+                background: 'rgba(255,255,255,0.15)', border: 'none',
+                borderRadius: '50%', width: '32px', height: '32px',
+                color: '#ffffff', fontSize: '1rem', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'background 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.25)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
+              >✕</button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleModalSubmit} style={{ padding: '2rem' }}>
+
+              {/* First Name & Last Name */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={labelStyle}>First Name *</label>
+                  <input
+                    type="text" name="firstName" value={modalData.firstName}
+                    onChange={handleModalChange} required
+                    placeholder="e.g., Juan"
+                    style={inputStyle}
+                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Last Name *</label>
+                  <input
+                    type="text" name="lastName" value={modalData.lastName}
+                    onChange={handleModalChange} required
+                    placeholder="e.g., Dela Cruz"
+                    style={inputStyle}
+                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+              </div>
+
+              {/* Age & Gender */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={labelStyle}>Age *</label>
+                  <input
+                    type="number" name="age" value={modalData.age}
+                    onChange={handleModalChange} required
+                    placeholder="e.g., 32"
+                    style={inputStyle}
+                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Gender *</label>
+                  <select
+                    name="gender" value={modalData.gender}
+                    onChange={handleModalChange} required
+                    style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}
+                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
+                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                  >
+                    <option value="" disabled>Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Contact Number */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={labelStyle}>Contact Number *</label>
+                <input
+                  type="tel" name="contactNumber" value={modalData.contactNumber}
+                  onChange={handleModalChange} required
+                  placeholder="e.g., 09123456789"
+                  style={inputStyle}
+                  onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
+                  onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              {/* Address */}
+              <div style={{ marginBottom: '1.75rem' }}>
+                <label style={labelStyle}>Address *</label>
+                <textarea
+                  name="address" value={modalData.address}
+                  onChange={handleModalChange} required rows="2"
+                  placeholder="e.g., 123 Main Street, Barangay San Antonio, Cebu City"
+                  style={{ ...inputStyle, resize: 'none' }}
+                  onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
+                  onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button type="button" onClick={closeModal} style={{
+                  flex: 1, padding: '0.85rem',
+                  background: 'transparent', color: '#6b6080',
+                  border: '1.5px solid #e0e0e0', borderRadius: '12px',
+                  fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif", transition: 'all 0.2s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#190051'; e.currentTarget.style.color = '#190051'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e0e0e0'; e.currentTarget.style.color = '#6b6080'; }}
+                >Cancel</button>
+                <button type="submit" style={{
+                  flex: 2, padding: '0.85rem',
+                  background: 'linear-gradient(135deg, #190051 0%, #2d0a6e 100%)',
+                  color: '#ffffff', border: 'none', borderRadius: '12px',
+                  fontSize: '0.88rem', fontWeight: 700, cursor: 'pointer',
+                  fontFamily: "'Inter', sans-serif", transition: 'all 0.25s',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(25,0,81,0.3)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                >
+                  Join Queue
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M5 12H19M19 12L13 6M19 12L13 18" />
+                  </svg>
+                </button>
+              </div>
+
+              <p style={{ textAlign: 'center', fontSize: '0.68rem', color: '#9b90b0', margin: '1rem 0 0 0', fontFamily: "'Inter', sans-serif" }}>
+                You'll receive a queue number immediately after submission
+              </p>
+            </form>
+          </div>
+        </div>
+      )}
 
     </div>
   );

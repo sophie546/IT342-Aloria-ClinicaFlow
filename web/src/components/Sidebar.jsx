@@ -94,7 +94,7 @@ export default function Sidebar() {
   const handleSettingsClick = () => {
     setIsRotating(true);
     setTimeout(() => setIsRotating(false), 500);
-    // Add your settings logic here
+    navigate('/account-settings');
   };
 
   // Get initials for avatar
