@@ -292,7 +292,7 @@ function Login() {
           <div style={{
             position: 'absolute', top: '55px', left: '-70px',
             backgroundColor: '#E1DCED', borderRadius: '10px',
-            width: '173px', height: '56px',
+            width: '173px', height: '66px',
             display: 'flex', alignItems: 'center',
             fontSize: '0.58rem', color: '#444', lineHeight: '1.5',
             boxShadow: '0 4px 20px rgba(0,0,0,0.13)', zIndex: 5, padding: '0 0.75rem'
@@ -302,9 +302,9 @@ function Login() {
 
           {/* Callout right */}
           <div style={{
-            position: 'absolute', top: '150px', right: '-90px',
+            position: 'absolute', top: '150px', right: '-95px',
             backgroundColor: '#E1DCED', borderRadius: '10px',
-            width: '173px', height: '56px',
+            width: '173px', height: '66px',
             display: 'flex', alignItems: 'center',
             fontSize: '0.58rem', color: '#444', lineHeight: '1.5',
             boxShadow: '0 4px 20px rgba(0,0,0,0.13)', zIndex: 5, padding: '0 0.75rem'
