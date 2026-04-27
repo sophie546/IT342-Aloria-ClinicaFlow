@@ -1,17 +1,16 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import LandingPage from './pages/LandingPage';
-import OAuth2Redirect from './pages/OAuth2Redirect';
-import Dashboard from './pages/Dashboard';
-import PatientQueue from './pages/PatientQueue'; 
-import Patients from './pages/Patients';
-import MedicalStaff from './pages/MedicalStaff';
-import Appointment from './pages/Appointment';
-import MedicalHistory from './pages/MedicalHistory';
-import PatientWaitingForm from './pages/PatientWaitingForm'; // ← updated
-import ProtectedRoute from './components/ProtectedRoute';
-import AccountSettings from './pages/AccountSettings';
+import Login from './features/authentication/pages/Login';
+import Register from './features/authentication/pages/Register';
+import LandingPage from './features/authentication/pages/LandingPage';
+import OAuth2Redirect from './features/authentication/pages/OAuth2Redirect';
+import PatientQueue from './features/staff/pages/PatientQueue'; 
+import Patients from './features/staff/pages/Patients';
+import MedicalStaff from './features/staff/pages/MedicalStaff';
+import Appointment from './features/patient/pages/Appointment';
+import MedicalHistory from './features/patient/pages/MedicalHistory';
+import PatientWaitingForm from './features/patient/pages/PatientWaitingForm';
+import ProtectedRoute from './features/authentication/components/ProtectedRoute';
+import AccountSettings from './features/account/pages/AccountSettings';
 
 function App() {
   return (
@@ -26,12 +25,6 @@ function App() {
         <Route path="/oauth2/redirect" element={<OAuth2Redirect />} />
         
         {/* Protected Routes */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        } />
-        
         <Route path="/patient-queue" element={
           <ProtectedRoute>
             <PatientQueue />
