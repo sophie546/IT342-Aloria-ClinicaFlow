@@ -27,7 +27,18 @@ public class WebSecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**", "/oauth2/**", "/login/**", "/api/medicalstaff/**", "/api/consultations/**").permitAll()
+                .requestMatchers(
+                    "/api/auth/**", 
+                   "/api/patient/**",        
+                    "/api/patient/register-queue",
+                    "/api/patient/queue-status",
+                    "/api/patient/queue",
+                    "/api/patient/test",
+                    "/oauth2/**", 
+                    "/login/**", 
+                    "/api/medicalstaff/**", 
+                    "/api/consultations/**"
+                ).permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2
@@ -35,9 +46,12 @@ public class WebSecurityConfig {
                     .userService(customOAuth2UserService)
                 )
                 .successHandler((request, response, authentication) -> {
-                    response.sendRedirect("http://localhost:5173/patient-queue");
+                    System.out.println("✅ OAuth2 Success! User: " + authentication.getName());
+                    // Redirect to OAuth2Redirect page which will handle storing user data
+                    response.sendRedirect("http://localhost:5173/oauth2/redirect");
                 })
                 .failureHandler((request, response, exception) -> {
+                    System.out.println("❌ OAuth2 Failure: " + exception.getMessage());
                     response.sendRedirect("http://localhost:5173/login?error=true");
                 })
             );

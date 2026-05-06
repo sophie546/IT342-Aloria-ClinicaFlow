@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import authService from '../services/authService';
 import doctorImg from '../../../shared/assets/doctor.png';
 import logo from '../../../shared/assets/logo.png';
 import hospitalImg from '../../../shared/assets/Hospital.png';
@@ -26,6 +27,8 @@ function LandingPage() {
   const [visible, setVisible] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errors, setErrors] = useState({});
   const [modalData, setModalData] = useState({
     firstName: '',
     lastName: '',
@@ -46,49 +49,162 @@ function LandingPage() {
   const [gainRef, gainInView] = useInView();
   const [ctaRef, ctaInView] = useInView();
 
+  // Validation functions
+  const validateForm = () => {
+    const newErrors = {};
+
+    if (!modalData.firstName.trim()) {
+      newErrors.firstName = 'First name is required';
+    } else if (modalData.firstName.length < 2) {
+      newErrors.firstName = 'First name must be at least 2 characters';
+    } else if (!/^[a-zA-Z\s\-']+$/.test(modalData.firstName)) {
+      newErrors.firstName = 'First name can only contain letters, spaces, hyphens, and apostrophes';
+    }
+
+    if (!modalData.lastName.trim()) {
+      newErrors.lastName = 'Last name is required';
+    } else if (modalData.lastName.length < 2) {
+      newErrors.lastName = 'Last name must be at least 2 characters';
+    } else if (!/^[a-zA-Z\s\-']+$/.test(modalData.lastName)) {
+      newErrors.lastName = 'Last name can only contain letters, spaces, hyphens, and apostrophes';
+    }
+
+    if (!modalData.age) {
+      newErrors.age = 'Age is required';
+    } else if (modalData.age < 1) {
+      newErrors.age = 'Age must be at least 1 year old';
+    } else if (modalData.age > 150) {
+      newErrors.age = 'Please enter a valid age (max 150 years)';
+    } else if (!Number.isInteger(Number(modalData.age))) {
+      newErrors.age = 'Age must be a whole number';
+    }
+
+    if (!modalData.gender) {
+      newErrors.gender = 'Please select a gender';
+    }
+
+    const phoneRegex = /^(\+?63|0)[0-9]{10}$/;
+    if (!modalData.contactNumber.trim()) {
+      newErrors.contactNumber = 'Contact number is required';
+    } else if (!phoneRegex.test(modalData.contactNumber.replace(/\s/g, ''))) {
+      newErrors.contactNumber = 'Please enter a valid Philippine mobile number (e.g., 09123456789 or +639123456789)';
+    }
+
+    if (!modalData.address.trim()) {
+      newErrors.address = 'Address is required';
+    } else if (modalData.address.length < 10) {
+      newErrors.address = 'Please enter a complete address (minimum 10 characters)';
+    } else if (modalData.address.length > 500) {
+      newErrors.address = 'Address is too long (maximum 500 characters)';
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const scrollTo = (ref) => {
     ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const navLinks = [
-    { label: 'About us',     ref: aboutRef },
+    { label: 'About us', ref: aboutRef },
     { label: 'Key features', ref: featuresRef },
-    { label: 'Benefits',     ref: benefitsRef },
+    { label: 'Benefits', ref: benefitsRef },
   ];
 
   const openModal = () => {
     setShowModal(true);
     setTimeout(() => setModalVisible(true), 10);
+    setErrors({});
   };
 
   const closeModal = () => {
     setModalVisible(false);
-    setTimeout(() => setShowModal(false), 300);
+    setTimeout(() => {
+      setShowModal(false);
+      setErrors({});
+      setModalData({
+        firstName: '',
+        lastName: '',
+        age: '',
+        gender: '',
+        contactNumber: '',
+        address: '',
+      });
+    }, 300);
   };
 
   const handleModalChange = (e) => {
-    setModalData({ ...modalData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setModalData({ ...modalData, [name]: value });
+    if (errors[name]) {
+      setErrors({ ...errors, [name]: '' });
+    }
   };
 
-  const handleModalSubmit = (e) => {
+  const handleModalSubmit = async (e) => {
     e.preventDefault();
-    const fullName = `${modalData.firstName} ${modalData.lastName}`;
-    const queueNumber = Math.floor(Math.random() * 100) + 1;
-    const patientData = {
-      fullName,
-      age: modalData.age,
-      address: modalData.address,
-      contactNumber: modalData.contactNumber,
-      gender: modalData.gender,
-      queueNumber,
-      arrivalTime: new Date().toLocaleTimeString(),
-      status: 'waiting',
-      assignedDoctor: 'Dr. Cruz',
-    };
-    localStorage.setItem('patientData', JSON.stringify(patientData));
-    localStorage.setItem('queueNumber', queueNumber);
-    closeModal();
-    setTimeout(() => navigate('/patient-waiting'), 300);
+    
+    if (!validateForm()) {
+      const firstErrorField = Object.keys(errors)[0];
+      if (firstErrorField) {
+        const element = document.querySelector(`[name="${firstErrorField}"]`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.focus();
+        }
+      }
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Register patient to queue using authService
+      const response = await authService.registerToQueue({
+        firstName: modalData.firstName.trim(),
+        lastName: modalData.lastName.trim(),
+        age: modalData.age,
+        gender: modalData.gender,
+        contactNumber: modalData.contactNumber.trim(),
+        address: modalData.address.trim(),
+      });
+
+      if (response.success) {
+        // Store patient info in localStorage for the waiting page
+        const patientInfo = {
+          fullName: `${modalData.firstName} ${modalData.lastName}`,
+          age: modalData.age,
+          address: modalData.address,
+          contactNumber: modalData.contactNumber,
+          gender: modalData.gender,
+          queueNumber: response.queueNumber || response.data?.queueNumber,
+          arrivalTime: new Date().toLocaleTimeString(),
+          status: 'waiting',
+          assignedDoctor: response.assignedDoctor || 'Dr. Cruz',
+          queuePosition: response.queuePosition,
+          estimatedWaitTime: response.estimatedWaitTime
+        };
+        
+        localStorage.setItem('patientData', JSON.stringify(patientInfo));
+        localStorage.setItem('queueNumber', response.queueNumber || response.data?.queueNumber);
+        
+        closeModal();
+        
+        // Show success message before navigating
+        alert(`Successfully joined the queue! Your queue number is: ${response.queueNumber || response.data?.queueNumber}`);
+        
+        setTimeout(() => navigate('/patient-waiting'), 300);
+      } else {
+        // Show error message
+        alert(response.message || 'Failed to join queue. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error registering patient:', error);
+      alert('An error occurred. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   useEffect(() => {
@@ -154,6 +270,12 @@ function LandingPage() {
       .feature-img { transition: transform 0.35s ease; }
       .feature-img:hover { transform: scale(1.06) rotate(-1deg); }
       .feature-img-right:hover { transform: scale(1.06) rotate(1deg); }
+      .error-text {
+        color: #dc2626;
+        font-size: 0.7rem;
+        margin-top: 0.25rem;
+        font-family: 'Inter', sans-serif;
+      }
     `;
     document.head.appendChild(style);
 
@@ -188,18 +310,26 @@ function LandingPage() {
     transition: `opacity 0.7s ease ${delay}, transform 0.7s ease ${delay}`,
   });
 
-  const inputStyle = {
-    width: '100%', padding: '0.8rem 1rem',
-    border: '1.5px solid #e0e0e0', borderRadius: '12px',
-    fontSize: '0.88rem', fontFamily: "'Inter', sans-serif",
-    outline: 'none', backgroundColor: '#f8f9fa',
-    boxSizing: 'border-box', transition: 'all 0.2s',
-  };
+  const inputStyle = (hasError) => ({
+    width: '100%', 
+    padding: '0.8rem 1rem',
+    border: hasError ? '1.5px solid #dc2626' : '1.5px solid #e0e0e0',
+    borderRadius: '12px',
+    fontSize: '0.88rem', 
+    fontFamily: "'Inter', sans-serif",
+    outline: 'none', 
+    backgroundColor: hasError ? '#fef2f2' : '#f8f9fa',
+    boxSizing: 'border-box', 
+    transition: 'all 0.2s',
+  });
 
   const labelStyle = {
-    display: 'block', marginBottom: '0.45rem',
-    fontSize: '0.82rem', fontWeight: 600,
-    color: '#190051', fontFamily: "'Inter', sans-serif",
+    display: 'block', 
+    marginBottom: '0.45rem',
+    fontSize: '0.82rem', 
+    fontWeight: 600,
+    color: '#190051', 
+    fontFamily: "'Inter', sans-serif",
   };
 
   return (
@@ -213,7 +343,7 @@ function LandingPage() {
       flexDirection: 'column',
     }}>
 
-      {/* ── NAVBAR ── */}
+      {/* NAVBAR */}
       <nav style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '1rem 3rem',
@@ -256,7 +386,7 @@ function LandingPage() {
         </div>
       </nav>
 
-      {/* ── HERO SECTION ── */}
+      {/* HERO SECTION */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '4rem 5rem 3rem 5rem',
@@ -350,7 +480,7 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* ── WHY CLINICAFLOW SECTION ── */}
+      {/* WHY CLINICAFLOW SECTION */}
       <div ref={aboutRef} style={{ padding: '0 3rem 4rem 3rem', maxWidth: '1300px', margin: '6rem auto 0 auto', width: '100%', boxSizing: 'border-box' }}>
         <div ref={whyRef} style={{
           background: '#ffffff', borderRadius: '40px',
@@ -388,7 +518,7 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* ── HIGHLIGHTS & KEY FEATURES SECTION ── */}
+      {/* HIGHLIGHTS & KEY FEATURES SECTION */}
       <div ref={featuresRef} style={{ padding: '0 5rem 6rem 5rem', maxWidth: '1300px', margin: '4rem auto 0 auto', width: '100%', boxSizing: 'border-box' }}>
         <h2 style={{ fontSize: '2.2rem', fontWeight: 800, color: '#190051', textAlign: 'center', marginBottom: '5rem', fontFamily: "'Inter', sans-serif", letterSpacing: '-0.01em' }}>
           Highlights & Key Features
@@ -443,7 +573,7 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* ── WHAT YOU GAIN SECTION ── */}
+      {/* WHAT YOU GAIN SECTION */}
       <div ref={benefitsRef}>
         <div ref={gainRef} style={{
           padding: '5rem 5rem', maxWidth: '1300px',
@@ -463,7 +593,7 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* ── SKIP THE LINE CTA SECTION ── */}
+      {/* SKIP THE LINE CTA SECTION */}
       <div ref={ctaRef} style={{ width: '100%', padding: '0 0 4rem 0', boxSizing: 'border-box', marginTop: '10rem', marginBottom: '3rem', ...fadeUp(ctaInView) }}>
         <div style={{
           background: 'linear-gradient(135deg, #190051 0%, #2d0a6e 100%)',
@@ -498,7 +628,7 @@ function LandingPage() {
         </div>
       </div>
 
-      {/* ── QUEUE MODAL ── */}
+      {/* QUEUE MODAL WITH VALIDATIONS */}
       {showModal && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 999,
@@ -513,7 +643,8 @@ function LandingPage() {
           <div style={{
             background: '#ffffff', borderRadius: '28px',
             width: '100%', maxWidth: '480px',
-            overflow: 'hidden',
+            maxHeight: '90vh',
+            overflow: 'auto',
             boxShadow: '0 32px 64px rgba(25,0,81,0.2)',
             transform: modalVisible ? 'translateY(0) scale(1)' : 'translateY(30px) scale(0.97)',
             transition: 'transform 0.3s ease, opacity 0.3s ease',
@@ -552,10 +683,9 @@ function LandingPage() {
                     type="text" name="firstName" value={modalData.firstName}
                     onChange={handleModalChange} required
                     placeholder="e.g., Juan"
-                    style={inputStyle}
-                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                    style={inputStyle(!!errors.firstName)}
                   />
+                  {errors.firstName && <div className="error-text">{errors.firstName}</div>}
                 </div>
                 <div>
                   <label style={labelStyle}>Last Name *</label>
@@ -563,10 +693,9 @@ function LandingPage() {
                     type="text" name="lastName" value={modalData.lastName}
                     onChange={handleModalChange} required
                     placeholder="e.g., Dela Cruz"
-                    style={inputStyle}
-                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                    style={inputStyle(!!errors.lastName)}
                   />
+                  {errors.lastName && <div className="error-text">{errors.lastName}</div>}
                 </div>
               </div>
 
@@ -578,25 +707,24 @@ function LandingPage() {
                     type="number" name="age" value={modalData.age}
                     onChange={handleModalChange} required
                     placeholder="e.g., 32"
-                    style={inputStyle}
-                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                    min="1" max="150"
+                    style={inputStyle(!!errors.age)}
                   />
+                  {errors.age && <div className="error-text">{errors.age}</div>}
                 </div>
                 <div>
                   <label style={labelStyle}>Gender *</label>
                   <select
                     name="gender" value={modalData.gender}
                     onChange={handleModalChange} required
-                    style={{ ...inputStyle, appearance: 'none', cursor: 'pointer' }}
-                    onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
-                    onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                    style={{ ...inputStyle(!!errors.gender), appearance: 'none', cursor: 'pointer' }}
                   >
                     <option value="" disabled>Select gender</option>
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
                     <option value="Other">Other</option>
                   </select>
+                  {errors.gender && <div className="error-text">{errors.gender}</div>}
                 </div>
               </div>
 
@@ -607,10 +735,12 @@ function LandingPage() {
                   type="tel" name="contactNumber" value={modalData.contactNumber}
                   onChange={handleModalChange} required
                   placeholder="e.g., 09123456789"
-                  style={inputStyle}
-                  onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
-                  onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                  style={inputStyle(!!errors.contactNumber)}
                 />
+                {errors.contactNumber && <div className="error-text">{errors.contactNumber}</div>}
+                <div style={{ fontSize: '0.65rem', color: '#9b90b0', marginTop: '0.25rem' }}>
+                  Format: 09123456789 or +639123456789
+                </div>
               </div>
 
               {/* Address */}
@@ -620,10 +750,9 @@ function LandingPage() {
                   name="address" value={modalData.address}
                   onChange={handleModalChange} required rows="2"
                   placeholder="e.g., 123 Main Street, Barangay San Antonio, Cebu City"
-                  style={{ ...inputStyle, resize: 'none' }}
-                  onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.backgroundColor = '#fff'; e.target.style.boxShadow = '0 0 0 3px rgba(25,0,81,0.08)'; }}
-                  onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.backgroundColor = '#f8f9fa'; e.target.style.boxShadow = 'none'; }}
+                  style={{ ...inputStyle(!!errors.address), resize: 'none' }}
                 />
+                {errors.address && <div className="error-text">{errors.address}</div>}
               </div>
 
               {/* Buttons */}
@@ -638,21 +767,24 @@ function LandingPage() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#190051'; e.currentTarget.style.color = '#190051'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#e0e0e0'; e.currentTarget.style.color = '#6b6080'; }}
                 >Cancel</button>
-                <button type="submit" style={{
+                <button type="submit" disabled={isSubmitting} style={{
                   flex: 2, padding: '0.85rem',
                   background: 'linear-gradient(135deg, #190051 0%, #2d0a6e 100%)',
                   color: '#ffffff', border: 'none', borderRadius: '12px',
-                  fontSize: '0.88rem', fontWeight: 700, cursor: 'pointer',
+                  fontSize: '0.88rem', fontWeight: 700, cursor: isSubmitting ? 'not-allowed' : 'pointer',
                   fontFamily: "'Inter', sans-serif", transition: 'all 0.25s',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                  opacity: isSubmitting ? 0.7 : 1,
                 }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(25,0,81,0.3)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}
+                onMouseEnter={e => { if (!isSubmitting) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 20px rgba(25,0,81,0.3)'; } }}
+                onMouseLeave={e => { if (!isSubmitting) { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; } }}
                 >
-                  Join Queue
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M5 12H19M19 12L13 6M19 12L13 18" />
-                  </svg>
+                  {isSubmitting ? 'Processing...' : 'Join Queue'}
+                  {!isSubmitting && (
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 12H19M19 12L13 6M19 12L13 18" />
+                    </svg>
+                  )}
                 </button>
               </div>
 
