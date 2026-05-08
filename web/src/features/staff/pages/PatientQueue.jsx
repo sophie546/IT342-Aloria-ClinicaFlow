@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../../shared/components/Sidebar';
+import queueService from '../../patient/services/queueService';
 
 /* ── Google Fonts ── */
 const fontLink = document.createElement('link');
@@ -29,13 +31,6 @@ const C = {
   green: '#10b981',
   greenBg: 'rgba(16,185,129,0.12)',
 };
-
-const MOCK = [
-  { id: 1, queueNumber: 1, patient: { firstName: 'Jungwon', lastName: 'Yang', age: 45, patientId: 'ID: 1' }, status: 'CONSULTING', assignedDoctor: 'Dr. Maria Cruz', arrivalTime: '15 mins.' },
-  { id: 2, queueNumber: 2, patient: { firstName: 'Evan', lastName: 'Lee', age: 32, patientId: 'ID: 2' }, status: 'WAITING', assignedDoctor: 'Dr. Maria Cruz', arrivalTime: '30 mins.' },
-  { id: 3, queueNumber: 3, patient: { firstName: 'Jake', lastName: 'Sim', age: 28, patientId: 'ID: 3' }, status: 'WAITING', assignedDoctor: 'Dr. Roberto Santos', arrivalTime: '45 mins.' },
-  { id: 4, queueNumber: 4, patient: { firstName: 'Sarah', lastName: 'Johnson', age: 45, patientId: 'ID: 4' }, status: 'COMPLETED', assignedDoctor: 'Dr. James Smith', arrivalTime: '1 hr' },
-];
 
 const statusConfig = {
   WAITING:    { color: C.orange,     bg: C.orangeBg,     label: 'Waiting' },
@@ -162,7 +157,7 @@ function PatientAvatar({ initials }) {
   );
 }
 
-/* ── Row Actions Dropdown (Fixed) ── */
+/* ── Row Actions Dropdown ── */
 function RowMenu({ patient, onEdit, onDelete }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
@@ -453,12 +448,81 @@ function FilterDropdown({ value, onChange }) {
 
 /* ── Main Component ── */
 export default function PatientQueue() {
-  const [queue, setQueue] = useState(MOCK);
+  const navigate = useNavigate();
+  const [queue, setQueue] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
+
+  // Check authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      alert('Please login to access patient queue management');
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  // Fetch queue data from backend
+  const fetchQueueData = async () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await queueService.getQueue();
+      const queueData = response.data || response;
+      
+      const formattedQueue = queueData.map(patient => ({
+        id: patient.patientId || patient.id,
+        queueNumber: patient.queueNumber,
+        patient: {
+          firstName: patient.fname || '',
+          lastName: patient.lname || '',
+          age: patient.age,
+          patientId: `ID: ${patient.patientId || patient.id}`
+        },
+        status: patient.status?.toUpperCase() || 'WAITING',
+        assignedDoctor: patient.assignedDoctor || 'Not assigned',
+        arrivalTime: formatArrivalTime(patient.arrivalTime || patient.createdAt)
+      }));
+      
+      setQueue(formattedQueue);
+    } catch (error) {
+      console.error('Error fetching queue:', error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        alert('Session expired. Please login again.');
+        navigate('/login');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatArrivalTime = (timestamp) => {
+    if (!timestamp) return '--';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - date) / 60000);
+    
+    if (diffMinutes < 1) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes} min.`;
+    return `${Math.floor(diffMinutes / 60)} hr`;
+  };
+
+  // Fetch once on component mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      fetchQueueData();
+    }
+  }, []);
 
   const rows = queue
     .filter(item => {
@@ -466,7 +530,6 @@ export default function PatientQueue() {
       const doctorName = item.assignedDoctor.toLowerCase();
       const searchTerm = search.toLowerCase();
       
-      // Search by patient name OR doctor name
       return (patientName.includes(searchTerm) || doctorName.includes(searchTerm)) &&
         (filterStatus === 'all' || item.status === filterStatus);
     })
@@ -489,26 +552,132 @@ export default function PatientQueue() {
     { title: 'Completed', value: queue.filter(q => q.status === 'COMPLETED').length, sub: 'Today', icon: Icons.Check },
   ];
 
-  const handleSave = (form) => {
-    setQueue(prev => prev.map(item =>
-      item.id === selectedRow?.id
+const handleSave = async (form) => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    alert('Please login again');
+    navigate('/login');
+    return;
+  }
+
+  try {
+    await queueService.updatePatient(selectedRow?.id, {
+      fname: form.firstName,
+      lname: form.lastName,
+      age: parseInt(form.age),
+      status: form.status.toLowerCase(),
+      assignedDoctor: form.assignedDoctor
+    });
+    
+    // Update local state immediately for better UX
+    setQueue(prevQueue => prevQueue.map(item => 
+      item.id === selectedRow?.id 
         ? {
             ...item,
-            patient: { ...item.patient, firstName: form.firstName, lastName: form.lastName, age: Number(form.age) },
-            status: form.status,
-            assignedDoctor: form.assignedDoctor,
+            patient: {
+              ...item.patient,
+              firstName: form.firstName,
+              lastName: form.lastName,
+              age: parseInt(form.age)
+            },
+            status: form.status.toUpperCase(),
+            assignedDoctor: form.assignedDoctor
           }
         : item
     ));
+    
+    await fetchQueueData(); // Refresh from backend
     setEditOpen(false);
-  };
+    alert('Patient updated successfully');
+  } catch (error) {
+    console.error('Error updating patient:', error);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      alert('Session expired. Please login again.');
+      navigate('/login');
+    } else {
+      alert('Failed to update patient');
+    }
+  }
+};
 
-  const handleDelete = () => {
-    setQueue(prev => prev.filter(item => item.id !== selectedRow?.id));
+const handleDelete = async () => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    alert('Please login again');
+    navigate('/login');
+    return;
+  }
+
+  try {
+    // This will now mark as 'completed' instead of deleting
+    await queueService.deletePatient(selectedRow?.id);
+    
+    // Refresh the queue data (patient will disappear from queue because status is now 'completed')
+    await fetchQueueData();
+    
     setDeleteOpen(false);
-  };
+    alert('Patient removed from queue successfully');
+  } catch (error) {
+    console.error('Error removing patient from queue:', error);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      alert('Session expired. Please login again.');
+      navigate('/login');
+    } else {
+      alert('Failed to remove patient from queue');
+    }
+  }
+};
 
   const COLS = '56px 50px 1fr 80px 140px 180px 130px 44px';
+
+  // Check if authenticated
+  const token = localStorage.getItem('token');
+  if (!token) {
+    return (
+      <div style={{
+        display: 'flex',
+        minHeight: '100vh',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
+      }}>
+        <div style={{ textAlign: 'center', backgroundColor: 'white', padding: '2rem', borderRadius: '10px' }}>
+          <h2>Authentication Required</h2>
+          <p>Please login to access the patient queue management.</p>
+          <button 
+            onClick={() => navigate('/login')}
+            style={{
+              marginTop: '1rem',
+              padding: '0.5rem 1rem',
+              backgroundColor: '#190051',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer'
+            }}
+          >
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading && queue.length === 0) {
+    return (
+      <div style={{
+        display: 'flex',
+        minHeight: '100vh',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
+      }}>
+        <div>Loading queue...</div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -521,7 +690,7 @@ export default function PatientQueue() {
 
       <div style={{ flex: 1, overflow: 'auto', minWidth: 0 }}>
 
-        {/* ── Top Bar ── */}
+        {/* Top Bar */}
         <div style={{
           background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
           height: 105,
@@ -556,7 +725,7 @@ export default function PatientQueue() {
             </div>
           </div>
 
-          {/* Search Bar - Updated placeholder */}
+          {/* Search Bar */}
           <div style={{
             width: 283, height: 38,
             backgroundColor: C.primary,
@@ -586,14 +755,14 @@ export default function PatientQueue() {
           </div>
         </div>
 
-        {/* ── Stat Cards ── */}
+        {/* Stat Cards */}
         <div style={{ display: 'flex', gap: 20, padding: '20px 34px 0' }}>
           {stats.map((stat) => (
             <StatCard key={stat.title} {...stat} />
           ))}
         </div>
 
-        {/* ── Queue Table ── */}
+        {/* Queue Table */}
         <div style={{
           margin: '20px 34px 34px',
           backgroundColor: C.primary,

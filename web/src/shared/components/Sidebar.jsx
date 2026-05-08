@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from "../assets/logo.png";
+import API from "../services/api";
 
 const menuItems = [
   {
@@ -55,17 +56,44 @@ export default function Sidebar() {
   const location = useLocation();
   const [isRotating, setIsRotating] = useState(false);
   const [user, setUser] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user data from localStorage only (no Supabase)
+  // Fetch user data from localStorage and medical_staff for photo
   useEffect(() => {
-    const fetchUser = () => {
+    const fetchUser = async () => {
       try {
         // Get from localStorage
         const storedUser = localStorage.getItem('user');
         if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
           const userData = JSON.parse(storedUser);
           setUser(userData);
+          
+          // If user has email, fetch medical_staff record to get photo
+          if (userData.email) {
+            const token = localStorage.getItem('token');
+            if (token) {
+              try {
+                const response = await API.get(`/api/medicalstaff/user/by-email/${userData.email}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.data && response.data.photo) {
+                  setPhotoUrl(response.data.photo);
+                  // Update stored user with photo
+                  userData.photo = response.data.photo;
+                  localStorage.setItem('user', JSON.stringify(userData));
+                } else if (userData.photo) {
+                  setPhotoUrl(userData.photo);
+                }
+              } catch (error) {
+                console.error('Error fetching medical_staff photo:', error);
+                // Fallback to user's stored photo
+                if (userData.photo) setPhotoUrl(userData.photo);
+              }
+            } else if (userData.photo) {
+              setPhotoUrl(userData.photo);
+            }
+          }
         }
       } catch (error) {
         console.error('Error fetching user:', error);
@@ -77,13 +105,29 @@ export default function Sidebar() {
     fetchUser();
   }, []);
 
+  // Listen for user updates from account settings
+  useEffect(() => {
+    const handleUserUpdate = (event) => {
+      const updatedUser = event.detail;
+      if (updatedUser) {
+        setUser(updatedUser);
+        if (updatedUser.photo) {
+          setPhotoUrl(updatedUser.photo);
+        }
+      }
+    };
+    
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
+  }, []);
+
   const handleSettingsClick = () => {
     setIsRotating(true);
     setTimeout(() => setIsRotating(false), 500);
     navigate('/account-settings');
   };
 
-  // Get initials for avatar
+  // Get initials for avatar (used when no photo)
   const getInitials = () => {
     if (!user) return 'GU';
     const firstName = user.firstName || user.first_name || '';
@@ -331,6 +375,7 @@ export default function Sidebar() {
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
           }}
         >
+          {/* Avatar with Photo */}
           <div
             style={{
               width: 42,
@@ -347,6 +392,7 @@ export default function Sidebar() {
               flexShrink: 0,
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
               transition: 'transform 0.3s ease',
+              overflow: 'hidden',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.05)';
@@ -355,7 +401,19 @@ export default function Sidebar() {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            {getInitials()}
+            {photoUrl ? (
+              <img 
+                src={photoUrl} 
+                alt="Profile" 
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              getInitials()
+            )}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, color: '#190051', lineHeight: '16px' }}>

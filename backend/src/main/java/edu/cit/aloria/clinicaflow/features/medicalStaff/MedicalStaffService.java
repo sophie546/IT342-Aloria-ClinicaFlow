@@ -40,16 +40,39 @@ public class MedicalStaffService {
         return repository.findByUserAccount_AccountID(accountId);
     }
 
+    // ADD THIS - Get staff by email
+    public Optional<MedicalStaffEntity> getStaffByEmail(String email) {
+        return repository.findByEmail(email);
+    }
+
     public MedicalStaffEntity updateStaff(int id, MedicalStaffEntity staffDetails) {
         MedicalStaffEntity staff = repository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Staff not found with id: " + id));
 
-        staff.setFname(staffDetails.getFname());
-        staff.setLname(staffDetails.getLname());
-        staff.setRole(staffDetails.getRole());
-        staff.setContactNo(staffDetails.getContactNo());
-        staff.setSpecialty(staffDetails.getSpecialty());
-
+        if (staffDetails.getFname() != null) {
+            staff.setFname(staffDetails.getFname());
+        }
+        if (staffDetails.getLname() != null) {
+            staff.setLname(staffDetails.getLname());
+        }
+        if (staffDetails.getRole() != null) {
+            staff.setRole(staffDetails.getRole());
+        }
+        if (staffDetails.getContactNo() != null) {
+            staff.setContactNo(staffDetails.getContactNo());
+        }
+        if (staffDetails.getSpecialty() != null) {
+            staff.setSpecialty(staffDetails.getSpecialty());
+        }
+        if (staffDetails.getEmail() != null) {
+            staff.setEmail(staffDetails.getEmail());
+        }
+        if (staffDetails.getAvailability() != null) {
+            staff.setAvailability(staffDetails.getAvailability());
+        }
+        if (staffDetails.getPhoto() != null) {
+            staff.setPhoto(staffDetails.getPhoto());
+        }
         if (staffDetails.getUserAccount() != null) {
             staff.setUserAccount(staffDetails.getUserAccount());
         }
@@ -88,44 +111,64 @@ public class MedicalStaffService {
         return userAccountRepository.findByEmail(email);
     }
 
-    // ✅ NEW: Sync single user to medical_staff only if not already exists
-    public void syncUserIfNotExists(UserAccountEntity user) {
-        try {
-            // Check if staff already exists by email
-            Optional<MedicalStaffEntity> existingStaff = repository.findByEmail(user.getEmail());
+// Sync single user to medical_staff only if not already exists
+public void syncUserIfNotExists(UserAccountEntity user) {
+    try {
+        // Check if staff already exists by email
+        Optional<MedicalStaffEntity> existingStaff = repository.findByEmail(user.getEmail());
 
-            if (existingStaff.isEmpty()) {
-                // Create new medical staff record only if doesn't exist
-                MedicalStaffEntity staff = new MedicalStaffEntity();
-                staff.setFname(user.getFirstName());
-                staff.setLname(user.getLastName());
-                staff.setRole(user.getRole());
-                staff.setSpecialty(user.getSpecialty() != null ? user.getSpecialty() : "General");
-                staff.setEmail(user.getEmail());
-                staff.setContactNo(user.getContactNo());
-                staff.setAvailability(user.getAvailability() != null ? user.getAvailability() : "Available");
-                staff.setUserAccount(user);
-
-                repository.save(staff);
-                System.out.println("✅ Synced new user to medical_staff: " + user.getEmail());
-            } else {
-                // Update existing staff with latest user info
-                MedicalStaffEntity staff = existingStaff.get();
-                staff.setFname(user.getFirstName());
-                staff.setLname(user.getLastName());
-                staff.setRole(user.getRole());
-                staff.setSpecialty(user.getSpecialty() != null ? user.getSpecialty() : staff.getSpecialty());
-                staff.setEmail(user.getEmail());
-                staff.setContactNo(user.getContactNo());
-                staff.setAvailability(user.getAvailability() != null ? user.getAvailability() : staff.getAvailability());
-                staff.setUserAccount(user);
-
-                repository.save(staff);
-                System.out.println("✅ Updated existing medical_staff record for: " + user.getEmail());
+        if (existingStaff.isEmpty()) {
+            // Create new medical staff record only if doesn't exist
+            MedicalStaffEntity staff = new MedicalStaffEntity();
+            staff.setFname(user.getFirstName());
+            staff.setLname(user.getLastName());
+            // Format role properly - capitalize first letter
+            String role = user.getRole();
+            if (role != null) {
+                role = role.substring(0, 1).toUpperCase() + role.substring(1).toLowerCase();
             }
-        } catch (Exception e) {
-            System.err.println("❌ Error syncing user to medical_staff: " + e.getMessage());
-            e.printStackTrace();
+            staff.setRole(role != null ? role : "Doctor");
+            staff.setSpecialty(user.getSpecialization() != null ? user.getSpecialization() : "General Medicine");
+            staff.setEmail(user.getEmail());
+            staff.setContactNo(user.getPhone() != null ? user.getPhone() : "Not provided");
+            staff.setAvailability(user.getAvailability() != null ? user.getAvailability() : "Available");
+            staff.setUserAccount(user);
+            staff.setPhoto(user.getPhoto() != null ? user.getPhoto() : user.getPicture());
+
+            repository.save(staff);
+            System.out.println("✅ Synced new user to medical_staff: " + user.getEmail());
+        } else {
+            // Update existing staff with latest user info
+            MedicalStaffEntity staff = existingStaff.get();
+            staff.setFname(user.getFirstName());
+            staff.setLname(user.getLastName());
+            // Format role properly
+            String role = user.getRole();
+            if (role != null) {
+                role = role.substring(0, 1).toUpperCase() + role.substring(1).toLowerCase();
+            }
+            staff.setRole(role != null ? role : staff.getRole());
+            staff.setSpecialty(user.getSpecialization() != null ? user.getSpecialization() : staff.getSpecialty());
+            staff.setEmail(user.getEmail());
+            staff.setContactNo(user.getPhone() != null ? user.getPhone() : staff.getContactNo());
+            staff.setAvailability(user.getAvailability() != null ? user.getAvailability() : staff.getAvailability());
+            staff.setUserAccount(user);
+            if (user.getPhoto() != null) {
+                staff.setPhoto(user.getPhoto());
+            } else if (user.getPicture() != null) {
+                staff.setPhoto(user.getPicture());
+            }
+
+            repository.save(staff);
+            System.out.println("✅ Updated existing medical_staff record for: " + user.getEmail());
         }
+    } catch (Exception e) {
+        System.err.println("❌ Error syncing user to medical_staff: " + e.getMessage());
+        e.printStackTrace();
+    }
+}
+        // Update user account
+    public void updateUserAccount(UserAccountEntity user) {
+        userAccountRepository.save(user);
     }
 }

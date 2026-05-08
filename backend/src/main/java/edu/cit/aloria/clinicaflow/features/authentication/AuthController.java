@@ -24,6 +24,7 @@ import org.springframework.web.client.RestTemplate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Date;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -43,7 +44,10 @@ public class AuthController {
     private SupabaseAuthService supabaseAuthService;
 
     @Autowired
-    private MedicalStaffService medicalStaffService;  // ADD THIS
+    private MedicalStaffService medicalStaffService;
+
+    @Autowired
+    private UserAccountService userService;  // ADD THIS - the missing dependency
 
     @Autowired
     private RestTemplate restTemplate;
@@ -161,8 +165,10 @@ public class AuthController {
             UserAccountEntity savedUser = userRepository.save(user);
 
             // ✅ SYNC TO MEDICAL_STAFF ON REGISTRATION
-            medicalStaffService.syncUserIfNotExists(savedUser);
-            System.out.println("✅ Synced new user to medical_staff on registration");
+            if (medicalStaffService != null) {
+                medicalStaffService.syncUserIfNotExists(savedUser);
+                System.out.println("✅ Synced new user to medical_staff on registration");
+            }
 
             Map<String, Object> userData = new HashMap<>();
             userData.put("accountID", savedUser.getAccountID());
@@ -283,8 +289,10 @@ public class AuthController {
             userRepository.save(user);
 
             // ✅ SYNC TO MEDICAL_STAFF ON LOGIN (only if not exists)
-            medicalStaffService.syncUserIfNotExists(user);
-            System.out.println("✅ Synced user to medical_staff on login");
+            if (medicalStaffService != null) {
+                medicalStaffService.syncUserIfNotExists(user);
+                System.out.println("✅ Synced user to medical_staff on login");
+            }
 
             String token = jwtService.generateToken(user.getEmail());
 
@@ -309,7 +317,6 @@ public class AuthController {
             String errorMsg = e.getMessage();
 
             if (errorMsg != null) {
-                // Check for invalid credentials (case insensitive)
                 String lowerErrorMsg = errorMsg.toLowerCase();
 
                 if (lowerErrorMsg.contains("invalid login credentials") ||
@@ -340,7 +347,6 @@ public class AuthController {
                 }
             }
 
-            // If we get here, return a clean error message
             return AuthResponse.error("❌ Invalid email or password. Please try again.");
         }
     }
@@ -356,12 +362,11 @@ public class AuthController {
         try {
             System.out.println("Attempting to resend verification to: " + email);
 
-            // Check rate limit for resend
             String resendKey = "resend_" + email.toLowerCase();
             RateLimitInfo rateInfo = rateLimitMap.get(resendKey);
             if (rateInfo != null) {
                 long timeSinceLastResend = (System.currentTimeMillis() - rateInfo.lastAttemptTime) / 1000;
-                if (timeSinceLastResend < 120) { // 2 minutes between resend attempts
+                if (timeSinceLastResend < 120) {
                     return AuthResponse.error(
                             "Please wait " + (120 - timeSinceLastResend) +
                                     " seconds before requesting another verification email."
@@ -371,7 +376,6 @@ public class AuthController {
 
             supabaseAuthService.resendConfirmationEmail(email);
 
-            // Update rate limit
             rateLimitMap.put(resendKey, new RateLimitInfo());
 
             return AuthResponse.success(
@@ -397,25 +401,23 @@ public class AuthController {
 
     @PostMapping("/confirm-email")
     public AuthResponse confirmEmail(@RequestBody Map<String, String> request) {
-        // This endpoint handles the email confirmation callback from Supabase
-        // Your frontend should call this after the user clicks the verification link
         String email = request.get("email");
-        String token = request.get("token"); // Optional, if needed
+        String token = request.get("token");
 
         if (email == null || email.trim().isEmpty()) {
             return AuthResponse.error("Email is required for confirmation.");
         }
 
         try {
-            // Update user's email_verified status in local database
             UserAccountEntity user = userRepository.findByEmail(email).orElse(null);
             if (user != null) {
                 user.setEmailVerified(true);
                 userRepository.save(user);
 
-                // ✅ SYNC TO MEDICAL_STAFF ON EMAIL CONFIRMATION
-                medicalStaffService.syncUserIfNotExists(user);
-                System.out.println("✅ Synced user to medical_staff on email confirmation");
+                if (medicalStaffService != null) {
+                    medicalStaffService.syncUserIfNotExists(user);
+                    System.out.println("✅ Synced user to medical_staff on email confirmation");
+                }
 
                 return AuthResponse.success(
                         "✓ Email verified successfully!\n\n" +
@@ -432,6 +434,20 @@ public class AuthController {
         } catch (Exception e) {
             e.printStackTrace();
             return AuthResponse.error("Email confirmation failed: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/user/{id}")
+    public ResponseEntity<?> getUserById(@PathVariable Integer id) {
+        try {
+            Optional<UserAccountEntity> user = userService.getUserById(id);
+            if (user.isPresent()) {
+                return ResponseEntity.ok(user.get());
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 
@@ -469,9 +485,10 @@ public class AuthController {
             user.setPicture(picture);
             userRepository.save(user);
 
-            // ✅ SYNC TO MEDICAL_STAFF ON GOOGLE LOGIN
-            medicalStaffService.syncUserIfNotExists(user);
-            System.out.println("✅ Synced Google user to medical_staff");
+            if (medicalStaffService != null) {
+                medicalStaffService.syncUserIfNotExists(user);
+                System.out.println("✅ Synced Google user to medical_staff");
+            }
 
             String token = jwtService.generateToken(user.getEmail());
 
@@ -514,6 +531,116 @@ public class AuthController {
             return "Supabase is reachable! Status: " + response.getStatusCode();
         } catch (Exception e) {
             return "Supabase connection failed: " + e.getMessage();
+        }
+    }
+
+    // Update user by ID
+    @PutMapping("/user/{id}")
+    public ResponseEntity<?> updateUser(@PathVariable Integer id, @RequestBody Map<String, Object> updateData) {
+        try {
+            Optional<UserAccountEntity> existingUser = userService.getUserById(id);
+            if (existingUser.isEmpty()) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            UserAccountEntity user = existingUser.get();
+            
+            if (updateData.containsKey("firstName")) {
+                user.setFirstName((String) updateData.get("firstName"));
+            }
+            if (updateData.containsKey("lastName")) {
+                user.setLastName((String) updateData.get("lastName"));
+            }
+            if (updateData.containsKey("age")) {
+                user.setAge(Integer.parseInt(updateData.get("age").toString()));
+            }
+            if (updateData.containsKey("gender")) {
+                user.setGender((String) updateData.get("gender"));
+            }
+            if (updateData.containsKey("email")) {
+                user.setEmail((String) updateData.get("email"));
+            }
+            if (updateData.containsKey("phone")) {
+                user.setPhone((String) updateData.get("phone"));
+            }
+            if (updateData.containsKey("specialization")) {
+                user.setSpecialization((String) updateData.get("specialization"));
+            }
+            if (updateData.containsKey("department")) {
+                user.setDepartment((String) updateData.get("department"));
+            }
+            if (updateData.containsKey("role")) {
+                user.setRole((String) updateData.get("role"));
+            }
+            if (updateData.containsKey("photo")) {
+                user.setPhoto((String) updateData.get("photo"));
+            }
+            if (updateData.containsKey("availability")) {
+                user.setAvailability((String) updateData.get("availability"));
+            }
+            
+            UserAccountEntity saved = userService.saveUser(user);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "User updated successfully");
+            response.put("data", saved);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+        }
+    }
+
+    // Change password
+    @PostMapping("/change-password")
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwordData) {
+        try {
+            String email = passwordData.get("email");
+            String currentPassword = passwordData.get("currentPassword");
+            String newPassword = passwordData.get("newPassword");
+            
+            Optional<UserAccountEntity> userOpt = userService.getUserByEmail(email);
+            if (userOpt.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("success", false, "message", "User not found"));
+            }
+            
+            UserAccountEntity user = userOpt.get();
+            
+            // First, verify current password with Supabase
+            try {
+                JsonObject verifyResponse = supabaseAuthService.signInWithEmail(email, currentPassword);
+                if (verifyResponse == null || !verifyResponse.has("user")) {
+                    return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Current password is incorrect"));
+                }
+                
+                // Get the access token from the sign-in response
+                String accessToken = verifyResponse.get("access_token").getAsString();
+                
+                // Update password in Supabase using the access token
+                boolean supabaseUpdated = supabaseAuthService.updatePassword(accessToken, newPassword);
+                
+                if (supabaseUpdated) {
+                    // Also update local password hash for fallback
+                    user.setPasswordHash(passwordEncoder.encode(newPassword));
+                    userService.saveUser(user);
+                    
+                    return ResponseEntity.ok(Map.of("success", true, "message", "Password changed successfully"));
+                } else {
+                    return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Failed to update password in Supabase"));
+                }
+                
+            } catch (RuntimeException e) {
+                if (e.getMessage().contains("Invalid email or password")) {
+                    return ResponseEntity.badRequest().body(Map.of("success", false, "message", "Current password is incorrect"));
+                }
+                throw e;
+            }
+            
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
         }
     }
 }

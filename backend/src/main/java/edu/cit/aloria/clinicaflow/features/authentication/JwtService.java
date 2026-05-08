@@ -9,8 +9,6 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.Function;
 
 @Service
@@ -31,13 +29,21 @@ public class JwtService {
                 .compact();
     }
 
+    public String extractEmail(String token) {
+        return extractClaim(token, Claims::getSubject);
+    }
+
     public boolean isTokenValid(String token, String email) {
         final String extractedEmail = extractEmail(token);
         return (extractedEmail.equals(email)) && !isTokenExpired(token);
     }
 
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
+    private boolean isTokenExpired(String token) {
+        return extractExpiration(token).before(new Date());
+    }
+
+    private Date extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration);
     }
 
     private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -47,14 +53,6 @@ public class JwtService {
                 .parseClaimsJws(token)
                 .getBody();
         return claimsResolver.apply(claims);
-    }
-
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
     }
 
     private Key getSignInKey() {

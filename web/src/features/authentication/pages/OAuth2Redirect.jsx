@@ -2,86 +2,175 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
+// List of staff/doctor emails (add all staff emails here)
+const STAFF_EMAILS = [
+  'sophie.aloria@gmail.com',
+  'doctor@example.com',
+  'nurse@example.com'
+  // Add more staff emails as needed
+];
+
 function OAuth2Redirect() {
   const navigate = useNavigate();
   const location = useLocation();
   const [error, setError] = useState(null);
+
+  // Function to sync staff member
+  const syncStaffMember = async (token, email, firstName, lastName) => {
+    try {
+      console.log('🔄 Syncing staff member...');
+      const response = await fetch('http://localhost:8080/api/medicalstaff/sync-from-users', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Sync result:', data);
+        return true;
+      } else {
+        console.warn('⚠️ Sync failed with status:', response.status);
+        return false;
+      }
+    } catch (error) {
+      console.error('❌ Sync error:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     const handleOAuthRedirect = async () => {
       try {
         console.log('OAuth2Redirect: Processing...');
         
-        // Check for token in URL
+        // Parse URL parameters from the redirect
         const params = new URLSearchParams(location.search);
-        const urlToken = params.get('token');
-        if (urlToken) {
-          localStorage.setItem('token', urlToken);
-        }
-
-        // Call your existing /oauth2/success endpoint
-        const response = await fetch('http://localhost:8080/api/auth/oauth2/success', {
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          console.log('OAuth success response:', data);
+        const token = params.get('token');
+        const email = params.get('email');
+        const name = params.get('name');
+        const picture = params.get('picture');
+        
+        console.log('Token from URL:', token ? `Present (${token.length} chars)` : 'Missing');
+        console.log('Email from URL:', email);
+        console.log('Name from URL:', name);
+        
+        // Check if we have a token directly in URL
+        if (token && token !== 'null' && token.length > 10) {
+          // Store token directly
+          localStorage.setItem('token', token);
+          console.log('✅ Token stored in localStorage from URL');
           
-          if (data.success) {
-            // Store token
-            const tokenToStore = data.token || urlToken;
-            if (tokenToStore) {
-              localStorage.setItem('token', tokenToStore);
-              console.log('✅ Token stored in localStorage');
-            } else {
-              console.warn('⚠️ No token found in response');
-            }
-            
-            // Store user data - make sure it has the expected fields for your Sidebar
-            if (data.user) {
-              // Your Sidebar expects fields like firstName, lastName, role
-              const userData = {
-                accountID: data.user.accountID,
-                firstName: data.user.firstName || data.user.first_name || '',
-                lastName: data.user.lastName || data.user.last_name || '',
-                email: data.user.email,
-                role: data.user.role || 'STAFF',
-                picture: data.user.picture || '',
-                emailVerified: data.user.emailVerified || false
-              };
-              localStorage.setItem('user', JSON.stringify(userData));
-              console.log('✅ User data stored in localStorage:', userData);
-            } else if (data.data) {
-              // Alternative response format
-              localStorage.setItem('user', JSON.stringify(data.data));
-              console.log('✅ User data stored from data field:', data.data);
-            }
-            
-            // Verify storage worked
-            const verifyToken = localStorage.getItem('token');
-            const verifyUser = localStorage.getItem('user');
-            console.log('Verification - Token exists:', !!verifyToken);
-            console.log('Verification - User exists:', !!verifyUser);
-            
-            // Redirect to dashboard
-            console.log('Redirecting to /patient-queue...');
-            navigate('/patient-queue');
-          } else {
-            setError(data.message || 'Login failed');
-            setTimeout(() => navigate('/login?error=' + encodeURIComponent(data.message)), 2000);
+          // Determine role based on email
+          const isStaff = STAFF_EMAILS.includes(email);
+          const role = isStaff ? 'DOCTOR' : 'PATIENT';
+          console.log('Assigned role:', role);
+          
+          // Create user data from URL parameters
+          const userData = {
+            accountID: 1,
+            firstName: name ? name.split(' ')[0] : email?.split('@')[0] || 'User',
+            lastName: name ? name.split(' ').slice(1).join(' ') : '',
+            email: email || '',
+            role: role,
+            picture: picture || '',
+            emailVerified: true
+          };
+          
+          localStorage.setItem('user', JSON.stringify(userData));
+          console.log('✅ User data stored in localStorage:', userData);
+          
+          // If staff/doctor, sync to medical_staff
+          if (isStaff) {
+            console.log('👨‍⚕️ Staff/Doctor detected, syncing staff record...');
+            await syncStaffMember(token, email, userData.firstName, userData.lastName);
           }
+          
+          // Verify storage worked
+          const verifyToken = localStorage.getItem('token');
+          const verifyUser = localStorage.getItem('user');
+          console.log('Verification - Token exists:', !!verifyToken);
+          console.log('Verification - User exists:', !!verifyUser);
+          
+          // Redirect based on role
+          console.log(`Redirecting to ${role === 'DOCTOR' ? '/patient-queue' : '/patient-waiting'}...`);
+          setTimeout(() => {
+            if (role === 'DOCTOR') {
+              navigate('/patient-queue');
+            } else {
+              navigate('/patient-waiting');
+            }
+          }, 1000);
         } else {
-          console.error('Failed to get user data, status:', response.status);
-          setError('Could not retrieve user information.');
-          setTimeout(() => navigate('/login'), 2000);
+          // No token in URL, try to fetch from backend
+          console.log('No token in URL, trying backend endpoint...');
+          
+          const response = await fetch('http://localhost:8080/api/auth/oauth2/success', {
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            console.log('OAuth success response:', data);
+            
+            if (data.success) {
+              const tokenToStore = data.token;
+              if (tokenToStore) {
+                localStorage.setItem('token', tokenToStore);
+                console.log('✅ Token stored in localStorage');
+              }
+              
+              let userRole = 'PATIENT';
+              let userEmail = '';
+              
+              if (data.user) {
+                userEmail = data.user.email;
+                userRole = STAFF_EMAILS.includes(userEmail) ? 'DOCTOR' : 'PATIENT';
+                
+                const userData = {
+                  accountID: data.user.accountID,
+                  firstName: data.user.firstName || data.user.first_name || '',
+                  lastName: data.user.lastName || data.user.last_name || '',
+                  email: userEmail,
+                  role: userRole,
+                  picture: data.user.picture || '',
+                  emailVerified: data.user.emailVerified || false
+                };
+                localStorage.setItem('user', JSON.stringify(userData));
+                console.log('✅ User data stored:', userData);
+              }
+              
+              // Sync staff if DOCTOR
+              if (userRole === 'DOCTOR' && tokenToStore) {
+                console.log('👨‍⚕️ Staff/Doctor detected, syncing staff record...');
+                await syncStaffMember(tokenToStore, userEmail, data.user?.firstName, data.user?.lastName);
+              }
+              
+              setTimeout(() => {
+                if (userRole === 'DOCTOR') {
+                  navigate('/patient-queue');
+                } else {
+                  navigate('/patient-waiting');
+                }
+              }, 1000);
+            } else {
+              setError(data.message || 'Login failed');
+              setTimeout(() => navigate('/login?error=' + encodeURIComponent(data.message)), 2000);
+            }
+          } else {
+            console.error('Failed to get user data, status:', response.status);
+            setError('Could not retrieve user information.');
+            setTimeout(() => navigate('/login'), 2000);
+          }
         }
       } catch (err) {
         console.error('OAuth Redirect Error:', err);
-        setError('Connection error.');
+        setError('Connection error: ' + err.message);
         setTimeout(() => navigate('/login'), 2000);
       }
     };

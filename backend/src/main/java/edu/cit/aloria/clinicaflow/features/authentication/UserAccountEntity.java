@@ -4,82 +4,82 @@ import jakarta.persistence.*;
 import java.util.Date;
 
 @Entity
-@Table(name = "UserAccount")
+@Table(name = "user_account")
 public class UserAccountEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "accountid")
-    private int accountID;
+    private Integer accountID;
 
-    @Column(name = "first_name", nullable = false)
+    @Column(name = "first_name", length = 100)
     private String firstName;
 
-    @Column(name = "last_name", nullable = false)
+    @Column(name = "last_name", length = 100)
     private String lastName;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "email", unique = true, length = 255)
     private String email;
 
-    @Column(name = "password_hash")
+    @Column(name = "password_hash", length = 255)
     private String passwordHash;
 
-    @Column(nullable = false)
+    @Column(name = "role", length = 50)
     private String role;
 
-    @Column(name = "picture")
-    private String picture;
-
-    @Column(name = "provider")
+    @Column(name = "provider", length = 50)
     private String provider;
 
-    @Column(name = "supabase_user_id", unique = true)
+    @Column(name = "supabase_user_id", length = 255)
     private String supabaseUserId;
 
-    @Column(name = "email_verified", nullable = false)
-    private boolean emailVerified = false;
+    @Column(name = "email_verified")
+    private boolean emailVerified;
 
     @Column(name = "created_date")
-    @Temporal(TemporalType.TIMESTAMP)
     private Date createdDate;
 
     @Column(name = "last_login")
-    @Temporal(TemporalType.TIMESTAMP)
     private Date lastLogin;
 
-    // ✅ NEW FIELDS FOR MEDICAL STAFF
-    @Column(name = "specialty")
-    private String specialty;
+    @Column(name = "picture", length = 500)
+    private String picture;
 
-    @Column(name = "availability")
+    @Column(name = "age")
+    private Integer age;
+
+    @Column(name = "gender", length = 20)
+    private String gender;
+
+    @Column(name = "phone", length = 20)
+    private String phone;
+
+    @Column(name = "specialization", length = 100)
+    private String specialization;
+
+    @Column(name = "department", length = 100)
+    private String department;
+
+    @Column(name = "availability", length = 20)
     private String availability;
 
-    @Column(name = "contact_no")
+    @Column(name = "photo", length = 1000)
+    private String photo;
+
+    // ADD THESE MISSING FIELDS
+    @Column(name = "contact_no", length = 20)
     private String contactNo;
 
-    // Constructors
-    public UserAccountEntity() {}
+    @Column(name = "specialty", length = 100)
+    private String specialty;
 
-    public UserAccountEntity(String firstName, String lastName, String email, String role, String provider) {
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.email = email;
-        this.role = role;
-        this.provider = provider;
-        this.createdDate = new Date();
-        this.lastLogin = new Date();
-        this.emailVerified = false;
-        this.availability = "Available";
-        this.specialty = "General";
-        this.contactNo = "Not provided";
-    }
+    // Getters and Setters - ADD THESE
 
-    // Getters and Setters
-    public int getAccountID() {
+    public Integer getAccountID() {
         return accountID;
     }
 
-    public void setAccountID(int accountID) {
+    public void setAccountID(Integer accountID) {
         this.accountID = accountID;
     }
 
@@ -123,14 +123,6 @@ public class UserAccountEntity {
         this.role = role;
     }
 
-    public String getPicture() {
-        return picture;
-    }
-
-    public void setPicture(String picture) {
-        this.picture = picture;
-    }
-
     public String getProvider() {
         return provider;
     }
@@ -171,13 +163,52 @@ public class UserAccountEntity {
         this.lastLogin = lastLogin;
     }
 
-    // ✅ NEW GETTERS AND SETTERS
-    public String getSpecialty() {
-        return specialty;
+    public String getPicture() {
+        return picture;
     }
 
-    public void setSpecialty(String specialty) {
-        this.specialty = specialty;
+    public void setPicture(String picture) {
+        this.picture = picture;
+    }
+
+    public Integer getAge() {
+        return age;
+    }
+
+    public void setAge(Integer age) {
+        this.age = age;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public void setPhone(String phone) {
+        this.phone = phone;
+    }
+
+    public String getSpecialization() {
+        return specialization;
+    }
+
+    public void setSpecialization(String specialization) {
+        this.specialization = specialization;
+    }
+
+    public String getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(String department) {
+        this.department = department;
     }
 
     public String getAvailability() {
@@ -188,11 +219,28 @@ public class UserAccountEntity {
         this.availability = availability;
     }
 
+    public String getPhoto() {
+        return photo;
+    }
+
+    public void setPhoto(String photo) {
+        this.photo = photo;
+    }
+
+    // ADD THESE GETTERS AND SETTERS
     public String getContactNo() {
         return contactNo;
     }
 
     public void setContactNo(String contactNo) {
         this.contactNo = contactNo;
+    }
+
+    public String getSpecialty() {
+        return specialty;
+    }
+
+    public void setSpecialty(String specialty) {
+        this.specialty = specialty;
     }
 }

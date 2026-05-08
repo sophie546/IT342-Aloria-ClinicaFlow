@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../../shared/assets/logo.png';
+import queueService from '../services/queueService';
 
 function PatientWaitingForm() {
   const navigate = useNavigate();
@@ -17,66 +18,46 @@ function PatientWaitingForm() {
   const [nowServing, setNowServing] = useState(null);
   const [queueNumber, setQueueNumber] = useState(localStorage.getItem('queueNumber') || '?');
 
-  // Fetch queue data from backend (NO AUTH REQUIRED)
+  // Fetch queue data from backend (PUBLIC - no auth required)
   const fetchQueueData = async () => {
     try {
       setLoading(true);
       
-      // Fetch queue status - NO AUTH NEEDED
-      const statusResponse = await fetch('http://localhost:8080/api/patient/queue-status', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
+      // Fetch queue status
+      const statusData = await queueService.getQueueStatus();
+      
+      setStats({
+        completed: statusData.completed || 0,
+        consulting: statusData.consulting || 0,
+        waiting: statusData.queueLength || 0,
+        total: statusData.total || 0
       });
-
-      if (statusResponse.ok) {
-        const statusData = await statusResponse.json();
-        console.log('Queue status:', statusData);
-        
-        setStats({
-          completed: statusData.completed || 0,
-          consulting: statusData.consulting || 0,
-          waiting: statusData.queueLength || 0,
-          total: statusData.total || 0
-        });
-        
-        // Find now serving (first patient in queue with status 'consulting' or first waiting)
-        if (statusData.currentQueue && statusData.currentQueue.length > 0) {
-          const serving = statusData.currentQueue.find(p => p.status === 'consulting') || statusData.currentQueue[0];
-          setNowServing(serving?.queueNumber || null);
-        }
+      
+      // Find now serving (first patient with status 'consulting')
+      if (statusData.currentQueue && statusData.currentQueue.length > 0) {
+        const serving = statusData.currentQueue.find(p => p.status === 'consulting') || statusData.currentQueue[0];
+        setNowServing(serving?.queueNumber || null);
       }
-
-      // Fetch patients in queue - NO AUTH NEEDED
-      const queueResponse = await fetch('http://localhost:8080/api/patient/queue', {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (queueResponse.ok) {
-        const queueData = await queueResponse.json();
-        console.log('Queue data:', queueData);
-        
-        // Transform data for display
-        const formattedPatients = (queueData.data || queueData).map(patient => ({
-          id: patient.patientId || patient.id,
-          initials: getInitials(patient.fname, patient.lname),
-          name: `${patient.fname || ''} ${patient.lname || ''}`.trim(),
-          age: patient.age,
-          gender: patient.gender,
-          status: patient.status === 'consulting' ? 'Consulting' : 
-                  patient.status === 'completed' ? 'Completed' : 'Waiting',
-          queueNum: patient.queueNumber,
-          // Show "None" for waiting patients, otherwise show assigned doctor
-          doctor: patient.status === 'waiting' ? 'None' : (patient.assignedDoctor || 'Dr. Cruz'),
-          arrivalTime: formatTime(patient.arrivalTime || patient.createdAt)
-        }));
-        
-        setPatients(formattedPatients);
-      }
+      
+      // Fetch patients in queue
+      const queueResponse = await queueService.getQueue();
+      const queueData = queueResponse.data || queueResponse;
+      
+      // Transform data for display
+      const formattedPatients = queueData.map(patient => ({
+        id: patient.patientId || patient.id,
+        initials: getInitials(patient.fname, patient.lname),
+        name: `${patient.fname || ''} ${patient.lname || ''}`.trim(),
+        age: patient.age,
+        gender: patient.gender,
+        status: patient.status === 'consulting' ? 'Consulting' : 
+                patient.status === 'completed' ? 'Completed' : 'Waiting',
+        queueNum: patient.queueNumber,
+        doctor: patient.status === 'waiting' ? 'None' : (patient.assignedDoctor || 'Dr. Cruz'),
+        arrivalTime: formatTime(patient.arrivalTime || patient.createdAt)
+      }));
+      
+      setPatients(formattedPatients);
     } catch (error) {
       console.error('Error fetching queue data:', error);
     } finally {
@@ -107,13 +88,10 @@ function PatientWaitingForm() {
     }
   }, []);
 
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    fetchQueueData();
-    const interval = setInterval(fetchQueueData, 30000); // Refresh every 30 seconds
-    
-    return () => clearInterval(interval);
-  }, []);
+
+useEffect(() => {
+  fetchQueueData();
+}, []);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -167,24 +145,6 @@ function PatientWaitingForm() {
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    filter: () => (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3" />
-      </svg>
-    ),
-    search: () => (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-    ),
-    dots: () => (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="1" />
-        <circle cx="19" cy="12" r="1" />
-        <circle cx="5" cy="12" r="1" />
-      </svg>
-    ),
   };
 
   if (loading && patients.length === 0) {
@@ -228,7 +188,7 @@ function PatientWaitingForm() {
       transition: 'opacity 0.35s ease',
     }}>
 
-      {/* ── TOPBAR ── */}
+      {/* TOPBAR */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -280,7 +240,7 @@ function PatientWaitingForm() {
         </button>
       </div>
 
-      {/* ── MAIN CONTENT ── */}
+      {/* MAIN CONTENT */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 260px 240px',
@@ -290,7 +250,7 @@ function PatientWaitingForm() {
         margin: '0 auto',
       }}>
 
-        {/* ── LEFT — Queue List ── */}
+        {/* LEFT — Queue List */}
         <div style={{
           background: 'rgba(255,255,255,0.85)',
           borderRadius: '24px',
@@ -371,7 +331,7 @@ function PatientWaitingForm() {
           </div>
         </div>
 
-        {/* ── MIDDLE — Now Serving + Your Number ── */}
+        {/* MIDDLE — Now Serving + Your Number */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           <div style={{
             background: '#190051',
@@ -400,7 +360,7 @@ function PatientWaitingForm() {
           </div>
         </div>
 
-        {/* ── RIGHT — Stats ── */}
+        {/* RIGHT — Stats */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {statsCards.map(({ label, value, sub, icon, iconBg }) => (
             <div key={label} style={{
@@ -438,4 +398,4 @@ function PatientWaitingForm() {
   );
 }
 
-export default PatientWaitingForm;
+export default PatientWaitingForm;  

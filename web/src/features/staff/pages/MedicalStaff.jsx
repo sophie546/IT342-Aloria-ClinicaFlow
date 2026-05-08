@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from '../../../shared/components/Sidebar';
 import { staffService } from '../services/staffService';
+import API from '../../../shared/services/api';
 
 /* ── Google Fonts ── */
 const fontLink = document.createElement('link');
@@ -38,6 +39,7 @@ const statusConfig = {
   Available: { label: 'Available', color: C.green },
   Busy: { label: 'Busy', color: C.orange },
   'Off Duty': { label: 'Off Duty', color: C.red },
+   Offline: { label: 'Offline', color: C.red },
 };
 
 /* ── Icons ── */
@@ -87,11 +89,38 @@ const Icons = {
       <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
     </svg>
   ),
+  RefreshIcon: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+    </svg>
+  ),
 };
 
 /* ── Status Badge ── */
 function StatusBadge({ status }) {
   const cfg = statusConfig[status];
+  // If status is not found, default to 'Offline'
+  if (!cfg) {
+    return (
+      <span style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '8px',
+        fontSize: 12,
+        fontWeight: 500,
+        color: C.red,
+      }}>
+        <span style={{
+          width: 8,
+          height: 8,
+          borderRadius: '50%',
+          backgroundColor: C.red,
+          display: 'inline-block',
+        }} />
+        Offline
+      </span>
+    );
+  }
   return (
     <span style={{
       display: 'inline-flex',
@@ -394,35 +423,72 @@ export default function MedicalStaff() {
   const currentUserRole = getCurrentUserRole();
   const isDoctor = currentUserRole === 'DOCTOR';
 
-  // Fetch users from user_account table
-  // Fetch staff from medical_staff table (not user_account)
-const fetchStaff = async () => {
-  setLoading(true);
-  try {
-    // ✅ CHANGE THIS - use getAllStaff instead of getAllUsers
-    const staffData = await staffService.getAllStaff();
-    console.log('Fetched staff from medical_staff:', staffData);
-    
-    const formattedStaff = staffData.map(staff => ({
-      id: staff.staffID,           // staffID from medical_staff
-      staffId: `STAFF-${String(staff.staffID).padStart(3, '0')}`,
-      name: `${staff.fname || ''} ${staff.lname || ''}`.trim() || 'No name',
-      role: staff.role || 'Staff',
-      specialization: staff.specialty || 'General',
-      email: staff.email || 'No email',
-      contact: staff.contactNo || 'Not provided',
-      availability: staff.availability || 'Available',
-    }));
-    
-    setStaff(formattedStaff);
-  } catch (error) {
-    console.error('Error fetching staff:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  // Auto-sync function
+  const syncStaffFromUsers = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      
+      const response = await fetch('http://localhost:8080/api/medicalstaff/sync-from-users', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const result = await response.json();
+      console.log('Auto-sync result:', result);
+      return result;
+    } catch (error) {
+      console.error('Auto-sync error:', error);
+    }
+  };
+
+  // Fetch staff from medical_staff table
+  const fetchStaff = async () => {
+    setLoading(true);
+    try {
+      const staffData = await staffService.getAllStaff();
+      console.log('Fetched staff from medical_staff:', staffData);
+      
+      const formattedStaff = staffData.map(staff => ({
+        id: staff.staffID,
+        staffId: `STAFF-${String(staff.staffID).padStart(3, '0')}`,
+        name: `${staff.fname || ''} ${staff.lname || ''}`.trim() || 'No name',
+        role: staff.role || 'Staff',
+        specialization: staff.specialty || 'General',
+        email: staff.email || 'No email',
+        contact: staff.contactNo || 'Not provided',
+        availability: staff.availability || 'Available',
+      }));
+      
+      setStaff(formattedStaff);
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load data on mount - sync first, then fetch
   useEffect(() => {
-    fetchStaff();
+    const loadData = async () => {
+      await syncStaffFromUsers();  // Sync from user_account to medical_staff
+      await fetchStaff();           // Fetch the updated staff list
+    };
+    loadData();
+  }, []);
+
+  // Listen for real-time user updates from AccountSettings
+  useEffect(() => {
+    const handleUserUpdate = async (event) => {
+      console.log('User updated, syncing staff...');
+      await syncStaffFromUsers();
+      await fetchStaff();
+    };
+    
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
   }, []);
 
   // Filter staff with case-insensitive matching
@@ -460,7 +526,6 @@ const fetchStaff = async () => {
     setShowAddModal(true);
   };
 
-  // ✅ FIXED: Delete staff - calls backend API
   const handleDeleteStaff = async (staff) => {
     if (isDoctor) {
       alert('Doctors cannot delete staff members');
@@ -469,12 +534,8 @@ const fetchStaff = async () => {
     
     if (window.confirm(`Are you sure you want to delete ${staff.name}?`)) {
       try {
-        // Call the backend API to delete
         await staffService.deleteStaff(staff.id);
-        
-        // Refresh the staff list from backend
         await fetchStaff();
-        
         alert('Staff member deleted successfully');
       } catch (error) {
         console.error('Error deleting staff:', error);
@@ -483,22 +544,17 @@ const fetchStaff = async () => {
     }
   };
 
-  // ✅ FIXED: Save staff (Add/Edit) - calls backend API
   const handleSaveStaff = async (staffData) => {
     try {
       if (editingStaff) {
-        // Update existing staff
         await staffService.updateStaff(editingStaff.id, staffData);
         alert('Staff member updated successfully');
       } else {
-        // Add new staff
         await staffService.addStaff(staffData);
         alert('Staff member added successfully');
       }
       
-      // Refresh the staff list from backend
       await fetchStaff();
-      
       setShowAddModal(false);
       setEditingStaff(null);
     } catch (error) {
@@ -560,6 +616,15 @@ const fetchStaff = async () => {
                 onChange={(e) => setSearch(e.target.value)}
                 style={{ flex: 1, background: 'transparent', border: 'none', outline: 'none', color: '#fff', fontSize: 13 }} />
             </div>
+
+            {/* Refresh Button */}
+            <button onClick={fetchStaff} style={{
+              height: 38, padding: '0 16px', backgroundColor: C.white, border: '1px solid #e2e8f0',
+              borderRadius: 8, color: C.primary, fontSize: 13, fontWeight: 600,
+              fontFamily: "'Poppins', sans-serif", cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6
+            }}>
+              <Icons.RefreshIcon /> Refresh
+            </button>
 
             {!isDoctor && (
               <button onClick={handleAddStaff} style={{
