@@ -516,11 +516,12 @@ export default function PatientQueue() {
     return `${Math.floor(diffMinutes / 60)} hr`;
   };
 
-  // Fetch once on component mount
-  useEffect(() => {
+useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       fetchQueueData();
+      const interval = setInterval(fetchQueueData, 30000);
+      return () => clearInterval(interval);
     }
   }, []);
 
@@ -545,12 +546,16 @@ export default function PatientQueue() {
       patientId: item.patient.patientId,
     }));
 
-  const stats = [
-    { title: 'Total Patients', value: queue.length, sub: 'In queue today', icon: Icons.People },
-    { title: 'Waiting', value: queue.filter(q => q.status === 'WAITING').length, sub: 'In queue', icon: Icons.Schedule },
-    { title: 'Consulting', value: queue.filter(q => q.status === 'CONSULTING').length, sub: 'In progress', icon: Icons.Medical },
-    { title: 'Completed', value: queue.filter(q => q.status === 'COMPLETED').length, sub: 'Today', icon: Icons.Check },
-  ];
+ const waitingCount = queue.filter(q => q.status === 'WAITING').length;
+const consultingCount = queue.filter(q => q.status === 'CONSULTING').length;
+const completedCount = queue.filter(q => q.status === 'COMPLETED').length;
+
+const stats = [
+    { title: 'Total Patients', value: waitingCount + consultingCount + completedCount, sub: 'In queue today', icon: Icons.People },
+    { title: 'Waiting', value: waitingCount, sub: 'In queue', icon: Icons.Schedule },
+    { title: 'Consulting', value: consultingCount, sub: 'In progress', icon: Icons.Medical },
+    { title: 'Completed', value: completedCount, sub: 'Today', icon: Icons.Check },
+];
 
 const handleSave = async (form) => {
   const token = localStorage.getItem('token');
