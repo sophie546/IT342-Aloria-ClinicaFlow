@@ -1,10 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Primary Navy/Purple palette (from React codebase) -->
+    <color name="navy_primary">#1E0A4E</color>
+    <color name="navy_dark">#190051</color>
+    <color name="navy_light">#2D1258</color>
+    <color name="purple_accent">#6C63FF</color>
+    <color name="purple_soft">#9D97FF</color>
+
+    <!-- Background colors -->
+    <color name="bg_lavender_light">#F2EDFB</color>
+    <color name="bg_lavender">#E4D9F5</color>
+    <color name="bg_lavender_deep">#D4C4EE</color>
+    <color name="bg_white_purple">#F8F5FF</color>
+
+    <!-- Legacy teal (kept for profile screens) -->
     <color name="teal_primary">#3DBFA0</color>
-    <color name="teal_dark">#2DA888</color>
+    <color name="teal_dark">#2A9D8F</color>
+    <color name="teal_light">#A8E6CF</color>
+    <color name="teal_surface">#E8F8F5</color>
+
+    <!-- Neutrals -->
     <color name="white">#FFFFFF</color>
+    <color name="background">#F0F4F8</color>
     <color name="light_gray">#F5F5F5</color>
-    <color name="text_dark">#333333</color>
-    <color name="text_gray">#888888</color>
+    <color name="divider_gray">#E0E0E0</color>
+    <color name="text_dark">#1A1A2E</color>
+    <color name="text_secondary">#4A4A68</color>
+    <color name="text_gray">#8E8E9A</color>
     <color name="red_logout">#E57373</color>
+    <color name="red_dark">#D32F2F</color>
+    <color name="shadow">#1A000000</color>
 </resources>

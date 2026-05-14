@@ -9,37 +9,40 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.myapplication.models.LoginRequest
+import com.example.myapplication.models.LoginResponse
+import com.example.myapplication.network.RetrofitClient
 import com.google.android.material.textfield.TextInputEditText
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var tokenManager: TokenManager
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
+
+        tokenManager = TokenManager(this)
+
+        // Check if already logged in
+        if (tokenManager.isLoggedIn()) {
+            startActivity(Intent(this, DashboardActivity::class.java))
+            finish()
+            return
+        }
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
 
-        tokenManager = TokenManager(this)
-
-        // If already logged in, go straight to Profile
-        if (tokenManager.getToken() != null) {
-            startActivity(Intent(this, ProfileActivity::class.java))
-            finish()
-            return
-        }
-
         val etEmail = findViewById<TextInputEditText>(R.id.etEmail)
         val etPassword = findViewById<TextInputEditText>(R.id.etPassword)
-
-
 
         findViewById<TextView>(R.id.tvRegister).setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))
@@ -54,25 +57,52 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
 
-            val request = LoginRequest(identifier = email, password = password)
+            performLogin(email, password)
+        }
+    }
 
-            RetrofitClient.instance.login(request).enqueue(object : Callback<AuthResponse> {
-                override fun onResponse(call: Call<AuthResponse>, response: Response<AuthResponse>) {
-                    if (response.isSuccessful) {
-                        val body = response.body()!!
-                        tokenManager.saveToken(body.token)
-                        tokenManager.saveUser(body.userId, body.firstname, body.lastname, body.email)
-                        startActivity(Intent(this@MainActivity, ProfileActivity::class.java))
+    private fun performLogin(email: String, password: String) {
+        val loginRequest = LoginRequest(email, password)
+
+        RetrofitClient.instance.login(loginRequest).enqueue(object : Callback<LoginResponse> {
+            override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+                if (response.isSuccessful) {
+                    val loginResponse = response.body()
+                    if (loginResponse?.success == true) {
+                        // Save token
+                        loginResponse.token?.let { token ->
+                            tokenManager.saveToken(token)  // ✅ Changed from saveTokens to saveToken
+                        }
+
+                        // Extract user info from the user map
+                        val userMap = loginResponse.user
+                        if (userMap != null) {
+                            val userEmail = userMap["email"] as? String ?: email
+                            val userRole = userMap["role"] as? String ?: "STAFF"
+                            val userId = (userMap["id"] as? Number)?.toLong() ?: 0
+                            val firstName = userMap["firstName"] as? String
+                            val lastName = userMap["lastName"] as? String
+
+                            tokenManager.saveUser(userId, userEmail, userRole, firstName, lastName)
+                        }
+
+                        Toast.makeText(this@MainActivity, loginResponse.message ?: "Login Successful!", Toast.LENGTH_SHORT).show()
+
+                        // Navigate to Dashboard
+                        startActivity(Intent(this@MainActivity, DashboardActivity::class.java))
                         finish()
                     } else {
-                        Toast.makeText(this@MainActivity, "Invalid credentials", Toast.LENGTH_SHORT).show()
+                        val errorMsg = loginResponse?.message ?: "Login failed"
+                        Toast.makeText(this@MainActivity, errorMsg, Toast.LENGTH_SHORT).show()
                     }
+                } else {
+                    Toast.makeText(this@MainActivity, "Server Error: ${response.code()}", Toast.LENGTH_SHORT).show()
                 }
+            }
 
-                override fun onFailure(call: Call<AuthResponse>, t: Throwable) {
-                    Toast.makeText(this@MainActivity, "Connection error: ${t.message}", Toast.LENGTH_SHORT).show()
-                }
-            })
-        }
+            override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+                Toast.makeText(this@MainActivity, "Network Error: ${t.message}", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 }
