@@ -23,6 +23,44 @@ public class SupabaseAuthService {
     public SupabaseAuthService() {
         this.restTemplate = new RestTemplate();
     }
+
+    // Update password in Supabase using access token
+public boolean updatePassword(String accessToken, String newPassword) {
+    try {
+        String url = supabaseUrl + "/auth/v1/user";
+        
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("apikey", supabaseKey);
+        headers.set("Authorization", "Bearer " + accessToken);
+        
+        JsonObject body = new JsonObject();
+        body.addProperty("password", newPassword);
+        
+        HttpEntity<String> request = new HttpEntity<>(body.toString(), headers);
+        
+        ResponseEntity<String> response = restTemplate.exchange(
+            url,
+            HttpMethod.PUT,
+            request,
+            String.class
+        );
+        
+        System.out.println("Supabase password update response status: " + response.getStatusCode());
+        System.out.println("Supabase password update response body: " + response.getBody());
+        
+        return response.getStatusCode() == HttpStatus.OK;
+        
+    } catch (HttpClientErrorException e) {
+        System.err.println("HTTP Error during password update: " + e.getStatusCode());
+        System.err.println("Error body: " + e.getResponseBodyAsString());
+        return false;
+    } catch (RestClientException e) {
+        System.err.println("RestClientException during password update: " + e.getMessage());
+        e.printStackTrace();
+        return false;
+    }
+}
     
     public JsonObject signUpWithEmail(String email, String password, String firstName, String lastName) {
         String url = supabaseUrl + "/auth/v1/signup";

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from "../assets/logo.png";
-import { staffService } from "../../features/staff/services/staffService";
+import API from "../services/api";
 
 const menuItems = [
   {
@@ -36,7 +36,7 @@ const menuItems = [
     path: '/appointment',
     icon: (
       <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67V7z"/>
+        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-3.5-2.08V8H12z"/>
       </svg>
     ),
   },
@@ -56,29 +56,43 @@ export default function Sidebar() {
   const location = useLocation();
   const [isRotating, setIsRotating] = useState(false);
   const [user, setUser] = useState(null);
+  const [photoUrl, setPhotoUrl] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch user data from localStorage or backend
+  // Fetch user data from localStorage and medical_staff for photo
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        // First try to get from localStorage
+        // Get from localStorage
         const storedUser = localStorage.getItem('user');
-        if (storedUser) {
+        if (storedUser && storedUser !== 'undefined' && storedUser !== 'null') {
           const userData = JSON.parse(storedUser);
           setUser(userData);
-          setLoading(false);
-          return;
-        }
-        
-        // If not in localStorage, try to fetch from backend
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          const users = await staffService.getAllUsers();
-          const currentUser = users.find(u => u.email === session.user.email);
-          if (currentUser) {
-            setUser(currentUser);
-            localStorage.setItem('user', JSON.stringify(currentUser));
+          
+          // If user has email, fetch medical_staff record to get photo
+          if (userData.email) {
+            const token = localStorage.getItem('token');
+            if (token) {
+              try {
+                const response = await API.get(`/api/medicalstaff/user/by-email/${userData.email}`, {
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.data && response.data.photo) {
+                  setPhotoUrl(response.data.photo);
+                  // Update stored user with photo
+                  userData.photo = response.data.photo;
+                  localStorage.setItem('user', JSON.stringify(userData));
+                } else if (userData.photo) {
+                  setPhotoUrl(userData.photo);
+                }
+              } catch (error) {
+                console.error('Error fetching medical_staff photo:', error);
+                // Fallback to user's stored photo
+                if (userData.photo) setPhotoUrl(userData.photo);
+              }
+            } else if (userData.photo) {
+              setPhotoUrl(userData.photo);
+            }
           }
         }
       } catch (error) {
@@ -91,13 +105,29 @@ export default function Sidebar() {
     fetchUser();
   }, []);
 
+  // Listen for user updates from account settings
+  useEffect(() => {
+    const handleUserUpdate = (event) => {
+      const updatedUser = event.detail;
+      if (updatedUser) {
+        setUser(updatedUser);
+        if (updatedUser.photo) {
+          setPhotoUrl(updatedUser.photo);
+        }
+      }
+    };
+    
+    window.addEventListener('userUpdated', handleUserUpdate);
+    return () => window.removeEventListener('userUpdated', handleUserUpdate);
+  }, []);
+
   const handleSettingsClick = () => {
     setIsRotating(true);
     setTimeout(() => setIsRotating(false), 500);
     navigate('/account-settings');
   };
 
-  // Get initials for avatar
+  // Get initials for avatar (used when no photo)
   const getInitials = () => {
     if (!user) return 'GU';
     const firstName = user.firstName || user.first_name || '';
@@ -107,6 +137,7 @@ export default function Sidebar() {
     }
     if (firstName) return firstName.charAt(0).toUpperCase();
     if (lastName) return lastName.charAt(0).toUpperCase();
+    if (user.email) return user.email.charAt(0).toUpperCase();
     return 'U';
   };
 
@@ -319,7 +350,7 @@ export default function Sidebar() {
         })}
       </div>
 
-      {/* User Profile Card - Dynamically shows logged-in user */}
+      {/* User Profile Card */}
       <div style={{ padding: '0 16px 24px' }}>
         <div
           style={{
@@ -344,6 +375,7 @@ export default function Sidebar() {
             e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
           }}
         >
+          {/* Avatar with Photo */}
           <div
             style={{
               width: 42,
@@ -360,6 +392,7 @@ export default function Sidebar() {
               flexShrink: 0,
               boxShadow: '0 4px 8px rgba(0,0,0,0.2)',
               transition: 'transform 0.3s ease',
+              overflow: 'hidden',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.05)';
@@ -368,7 +401,19 @@ export default function Sidebar() {
               e.currentTarget.style.transform = 'scale(1)';
             }}
           >
-            {getInitials()}
+            {photoUrl ? (
+              <img 
+                src={photoUrl} 
+                alt="Profile" 
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+              />
+            ) : (
+              getInitials()
+            )}
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 600, color: '#190051', lineHeight: '16px' }}>

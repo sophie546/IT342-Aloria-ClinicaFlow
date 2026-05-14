@@ -1,4 +1,5 @@
 import axiosInstance from '../../../shared/services/axiosConfig';
+
 const authService = {
     // Register user
     register: async (userData) => {
@@ -13,16 +14,13 @@ const authService = {
             return response.data;
         } catch (error) {
             if (error.response) {
-                // Server responded with error
                 return error.response.data;
             } else if (error.request) {
-                // Request made but no response
                 return { 
                     success: false, 
                     message: 'Cannot connect to server. Make sure backend is running.' 
                 };
             } else {
-                // Something else happened
                 return { 
                     success: false, 
                     message: 'An error occurred. Please try again.' 
@@ -39,7 +37,6 @@ const authService = {
                 password: credentials.password
             });
             
-            // If login successful, store user data/token
             if (response.data.success) {
                 localStorage.setItem('user', JSON.stringify(response.data.user));
                 if (response.data.token) {
@@ -65,12 +62,83 @@ const authService = {
         }
     },
 
+  // Register patient to queue
+registerToQueue: async (patientData) => {
+    try {
+        console.log('=== QUEUE REGISTRATION START ===');
+        console.log('Endpoint:', '/patient/register-queue');
+        console.log('Data being sent:', {
+            firstName: patientData.firstName,
+            lastName: patientData.lastName,
+            age: parseInt(patientData.age),
+            gender: patientData.gender,
+            contactNumber: patientData.contactNumber,
+            address: patientData.address
+        });
+        
+        const response = await axiosInstance.post('/patient/register-queue', {
+            firstName: patientData.firstName,
+            lastName: patientData.lastName,
+            age: parseInt(patientData.age),
+            gender: patientData.gender,
+            contactNumber: patientData.contactNumber,
+            address: patientData.address
+        });
+        
+        console.log('Response received:', response.data);
+        console.log('=== QUEUE REGISTRATION SUCCESS ===');
+        return response.data;
+        
+    } catch (error) {
+        console.error('=== QUEUE REGISTRATION ERROR ===');
+        console.error('Error details:', error);
+        
+        if (error.response) {
+            console.error('Status:', error.response.status);
+            console.error('Data:', error.response.data);
+            console.error('Headers:', error.response.headers);
+            return error.response.data;
+        } else if (error.request) {
+            console.error('Request was made but no response received');
+            console.error('Request:', error.request);
+            return { 
+                success: false, 
+                message: 'Cannot connect to server. Please make sure the backend is running on port 8080.' 
+            };
+        } else {
+            console.error('Error message:', error.message);
+            return { 
+                success: false, 
+                message: 'An error occurred: ' + error.message 
+            };
+        }
+    }
+},
+
+   // Get current queue status
+getQueueStatus: async () => {
+    try {
+        // CHANGE: Use correct endpoint
+        const response = await axiosInstance.get('/patient/queue-status');
+        return response.data;
+    } catch (error) {
+        console.error('Queue status error:', error);
+        if (error.response) {
+            return error.response.data;
+        } else {
+            return { 
+                success: false, 
+                message: 'Failed to fetch queue status' 
+            };
+        }
+    }
+},
+
     // Resend verification email
     resendVerificationEmail: async (email) => {
         try {
             const response = await axiosInstance.post('/auth/resend-verification', { email });
             
-            // Return the response data directly if it has success property
             if (response.data) {
                 return {
                     success: response.data.success || true,
@@ -86,19 +154,16 @@ const authService = {
             console.error('Resend verification error:', error);
             
             if (error.response) {
-                // Server responded with error
                 return {
                     success: false,
                     message: error.response.data?.message || 'Failed to resend verification email'
                 };
             } else if (error.request) {
-                // Request made but no response
                 return {
                     success: false,
                     message: 'Cannot connect to server. Please check your connection.'
                 };
             } else {
-                // Something else happened
                 return {
                     success: false,
                     message: 'An error occurred. Please try again.'
@@ -131,7 +196,7 @@ const authService = {
     logout: () => {
         localStorage.removeItem('user');
         localStorage.removeItem('token');
-        localStorage.removeItem('refreshToken'); // Clear refresh token if stored
+        localStorage.removeItem('refreshToken');
     },
 
     // Get current user
@@ -150,20 +215,16 @@ const authService = {
         const token = localStorage.getItem('token');
         const user = localStorage.getItem('user');
         
-        // Check if token exists and is not expired (optional)
         if (token && user) {
             try {
-                // Optional: Check token expiration if your tokens have expiry
                 const tokenData = JSON.parse(atob(token.split('.')[1]));
                 const currentTime = Date.now() / 1000;
                 
                 if (tokenData.exp && tokenData.exp < currentTime) {
-                    // Token expired
                     authService.logout();
                     return false;
                 }
             } catch (e) {
-                // Invalid token format
                 return !!token;
             }
             return true;
@@ -172,7 +233,7 @@ const authService = {
         return false;
     },
 
-    // Refresh token (if your backend supports it)
+    // Refresh token
     refreshToken: async () => {
         try {
             const refreshToken = localStorage.getItem('refreshToken');
@@ -198,13 +259,12 @@ const authService = {
         }
     },
 
-    // Update user profile (optional)
+    // Update user profile
     updateProfile: async (userData) => {
         try {
             const response = await axiosInstance.put('/auth/profile', userData);
             
             if (response.data.success && response.data.user) {
-                // Update stored user data
                 const currentUser = authService.getCurrentUser();
                 const updatedUser = { ...currentUser, ...response.data.user };
                 localStorage.setItem('user', JSON.stringify(updatedUser));

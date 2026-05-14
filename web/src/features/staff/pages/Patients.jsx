@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Sidebar from '../../../shared/components/Sidebar';
+import { patientService } from '../services/patientService';
 
 /* ── Google Fonts ── */
 const fontLink = document.createElement('link');
@@ -29,15 +30,6 @@ const C = {
   orange: '#f59e0b',
   orangeBg: 'rgba(245,158,11,0.12)',
 };
-
-/* ── Mock Patient Data ── */
-const MOCK_PATIENTS = [
-  { id: 1, firstName: 'Maria', lastName: 'Santos', age: 45, address: '123 Main St, Barangay Centro', contact: '09123456789', lastVisit: 'Jan 15, 2024', gender: 'Female' },
-  { id: 2, firstName: 'Juan', lastName: 'Dela Cruz', age: 32, address: '456 Oak Ave, Barangay San Jose', contact: '09234567890', lastVisit: 'Feb 03, 2024', gender: 'Male' },
-  { id: 3, firstName: 'Ana', lastName: 'Reyes', age: 28, address: '789 Pine Rd, Barangay Poblacion', contact: '09345678901', lastVisit: 'Dec 20, 2023', gender: 'Female' },
-  { id: 4, firstName: 'Jake', lastName: 'Sim', age: 23, address: '430 Oak Ave, Barangay San Jose', contact: '09957150347', lastVisit: 'Nov 15, 2025', gender: 'Male' },
-  { id: 5, firstName: 'Jungwon', lastName: 'Yang', age: 21, address: '431 Oak Ave, Barangay San Jose', contact: '09691664673', lastVisit: 'Feb 09, 2025', gender: 'Male' },
-];
 
 /* ── Icons ── */
 const Icons = {
@@ -84,6 +76,11 @@ const Icons = {
   Filter: () => (
     <svg width="15" height="15" viewBox="0 0 24 24" fill="rgba(0,0,0,0.7)">
       <path d="M10 18h4v-2h-4v2zM3 6v2h18V6H3zm3 7h12v-2H6v2z"/>
+    </svg>
+  ),
+  Refresh: () => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
     </svg>
   ),
 };
@@ -236,8 +233,8 @@ function PatientRow({ patient, index, onEdit, onDelete }) {
       </div>
       <div style={{ fontSize: 13, color: C.text1 }}>{patient.age}</div>
       <div style={{ fontSize: 13, color: C.text1 }}>{patient.address}</div>
-      <div style={{ fontSize: 13, color: C.text1 }}>{patient.contact}</div>
-      <div style={{ fontSize: 13, color: C.text1 }}>{patient.lastVisit}</div>
+      <div style={{ fontSize: 13, color: C.text1 }}>{patient.contactNumber}</div>
+      <div style={{ fontSize: 13, color: C.text1 }}>{patient.lastVisit || 'N/A'}</div>
       <div ref={menuRef} style={{ position: 'relative' }}>
         <button
           onClick={() => setMenuOpen(!menuOpen)}
@@ -331,13 +328,43 @@ function PatientRow({ patient, index, onEdit, onDelete }) {
 
 /* ── Main Component ── */
 export default function Patients() {
-  const [patients, setPatients] = useState(MOCK_PATIENTS);
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [genderFilter, setGenderFilter] = useState('All Genders'); // Added gender filter state
+  const [genderFilter, setGenderFilter] = useState('All Genders');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
 
-  // Updated filter to include gender
+  // Fetch patients from backend
+  const fetchPatients = async () => {
+    setLoading(true);
+    try {
+      const data = await patientService.getAllPatients();
+      console.log('✅ Fetched patients:', data);
+      
+      const formattedPatients = data.map(patient => ({
+        id: patient.patientId || patient.id,
+        firstName: patient.fname || '',
+        lastName: patient.lname || '',
+        age: patient.age || '',
+        gender: patient.gender || 'Not specified',
+        address: patient.address || '',
+        contactNumber: patient.contactNo || '',
+        lastVisit: patient.lastVisit || patient.arrivalTime?.split('T')[0] || '',
+      }));
+      
+      setPatients(formattedPatients);
+    } catch (error) {
+      console.error('Error fetching patients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPatients();
+  }, []);
+
   const filteredPatients = patients.filter(patient => {
     const matchesSearch = `${patient.firstName} ${patient.lastName}`.toLowerCase().includes(search.toLowerCase());
     const matchesGender = genderFilter === 'All Genders' || patient.gender === genderFilter;
@@ -359,21 +386,51 @@ export default function Patients() {
     setShowAddModal(true);
   };
 
-  const handleDeletePatient = (patient) => {
+  const handleDeletePatient = async (patient) => {
     if (window.confirm(`Are you sure you want to delete ${patient.firstName} ${patient.lastName}?`)) {
-      setPatients(patients.filter(p => p.id !== patient.id));
+      try {
+        await patientService.deletePatient(patient.id);
+        await fetchPatients();
+        alert('Patient deleted successfully');
+      } catch (error) {
+        console.error('Error deleting patient:', error);
+        alert('Failed to delete patient');
+      }
     }
   };
 
-  const handleSavePatient = (patientData) => {
-    if (editingPatient) {
-      setPatients(patients.map(p => p.id === editingPatient.id ? { ...patientData, id: p.id } : p));
-    } else {
-      setPatients([...patients, { ...patientData, id: patients.length + 1 }]);
+  const handleSavePatient = async (patientData) => {
+    try {
+      if (editingPatient) {
+        await patientService.updatePatient(editingPatient.id, patientData);
+        alert('Patient updated successfully');
+      } else {
+        await patientService.createPatient(patientData);
+        alert('Patient added successfully');
+      }
+      await fetchPatients();
+      setShowAddModal(false);
+      setEditingPatient(null);
+    } catch (error) {
+      console.error('Error saving patient:', error);
+      alert('Failed to save patient');
     }
-    setShowAddModal(false);
-    setEditingPatient(null);
   };
+
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
+      }}>
+        <Sidebar />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+          <div>Loading patients...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -416,7 +473,7 @@ export default function Patients() {
                 Patient Management
               </div>
               <div style={{ fontFamily: "'Poppins', sans-serif", fontSize: 13, fontWeight: 400, color: 'rgba(25,0,81,0.65)', lineHeight: '16px', marginTop: 6 }}>
-                Add, edit, and manage patient records
+                Digital records of all registered patients
               </div>
             </div>
           </div>
@@ -450,6 +507,38 @@ export default function Patients() {
                 }}
               />
             </div>
+
+            {/* Refresh Button */}
+            <button
+              onClick={fetchPatients}
+              style={{
+                height: 38,
+                padding: '0 16px',
+                backgroundColor: C.white,
+                border: '1px solid #e2e8f0',
+                borderRadius: 8,
+                color: C.primary,
+                fontSize: 13,
+                fontWeight: 600,
+                fontFamily: "'Poppins', sans-serif",
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f6fa';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = C.white;
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <Icons.Refresh />
+              Refresh
+            </button>
 
             {/* Add Patient Button */}
             <button
@@ -501,7 +590,6 @@ export default function Patients() {
           boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
           overflow: 'hidden',
         }}>
-          {/* Table Header with Gender Filter */}
           <div style={{
             padding: '26px 27px 14px',
             display: 'flex',
@@ -517,7 +605,6 @@ export default function Patients() {
               </div>
             </div>
             
-            {/* Gender Filter Dropdown */}
             <GenderFilter value={genderFilter} onChange={setGenderFilter} />
           </div>
 
@@ -578,8 +665,7 @@ function PatientModal({ patient, onClose, onSave }) {
     lastName: patient?.lastName || '',
     age: patient?.age || '',
     address: patient?.address || '',
-    contact: patient?.contact || '',
-    lastVisit: patient?.lastVisit || '',
+    contactNumber: patient?.contactNumber || '',
     gender: patient?.gender || 'Male',
   });
 
@@ -638,10 +724,7 @@ function PatientModal({ patient, onClose, onSave }) {
                     color: C.text1,
                     outline: 'none',
                     fontFamily: "'Poppins', sans-serif",
-                    transition: 'border-color 0.2s ease',
                   }}
-                  onFocus={(e) => e.target.style.borderColor = C.primary}
-                  onBlur={(e) => e.target.style.borderColor = '#e2e8f0'}
                 />
               </div>
               <div>
@@ -737,29 +820,8 @@ function PatientModal({ patient, onClose, onSave }) {
               <input
                 type="tel"
                 required
-                value={formData.contact}
-                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                style={{
-                  width: '100%',
-                  height: 42,
-                  border: '1px solid #e2e8f0',
-                  borderRadius: 8,
-                  padding: '0 14px',
-                  fontSize: 13,
-                  color: C.text1,
-                  outline: 'none',
-                  fontFamily: "'Poppins', sans-serif",
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: C.text2, display: 'block', marginBottom: 6 }}>Last Visit</label>
-              <input
-                type="text"
-                value={formData.lastVisit}
-                onChange={(e) => setFormData({ ...formData, lastVisit: e.target.value })}
-                placeholder="e.g., Jan 15, 2024"
+                value={formData.contactNumber}
+                onChange={(e) => setFormData({ ...formData, contactNumber: e.target.value })}
                 style={{
                   width: '100%',
                   height: 42,
@@ -796,13 +858,6 @@ function PatientModal({ patient, onClose, onSave }) {
                 color: C.text2,
                 cursor: 'pointer',
                 fontFamily: "'Poppins', sans-serif",
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = '#f8f9fa';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = C.white;
               }}
             >
               Cancel
@@ -820,15 +875,6 @@ function PatientModal({ patient, onClose, onSave }) {
                 fontWeight: 600,
                 cursor: 'pointer',
                 fontFamily: "'Poppins', sans-serif",
-                transition: 'all 0.2s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = C.primaryLight;
-                e.currentTarget.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = C.primary;
-                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               {patient ? 'Update Patient' : 'Add Patient'}

@@ -144,4 +144,16 @@ public class MedicalStaffEntity {
                 ", email='" + email + '\'' +
                 '}';
     }
+
+     @Column(name = "photo", length = 1000)
+        private String photo;
+
+        // Getter and setter
+        public String getPhoto() {
+            return photo;
+        }
+
+        public void setPhoto(String photo) {
+            this.photo = photo;
+        }
 }

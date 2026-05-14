@@ -1,45 +1,121 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../../shared/assets/logo.png';
+import queueService from '../services/queueService';
 
 function PatientWaitingForm() {
   const navigate = useNavigate();
   const [visible, setVisible] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [patients, setPatients] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    completed: 0,
+    consulting: 0,
+    waiting: 0,
+    total: 0
+  });
+  const [nowServing, setNowServing] = useState(null);
+  const [queueNumber, setQueueNumber] = useState(localStorage.getItem('queueNumber') || '?');
 
-  const patientData = JSON.parse(localStorage.getItem('patientData') || '{}');
-  const queueNumber = localStorage.getItem('queueNumber') || '?';
+  // Fetch queue data from backend (PUBLIC - no auth required)
+  const fetchQueueData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch queue status
+      const statusData = await queueService.getQueueStatus();
+      
+      setStats({
+        completed: statusData.completed || 0,
+        consulting: statusData.consulting || 0,
+        waiting: statusData.queueLength || 0,
+        total: statusData.total || 0
+      });
+      
+      // Find now serving (first patient with status 'consulting')
+      if (statusData.currentQueue && statusData.currentQueue.length > 0) {
+        const serving = statusData.currentQueue.find(p => p.status === 'consulting') || statusData.currentQueue[0];
+        setNowServing(serving?.queueNumber || null);
+      }
+      
+      // Fetch patients in queue
+      const queueResponse = await queueService.getQueue();
+      const queueData = queueResponse.data || queueResponse;
+      
+      // Transform data for display
+      const formattedPatients = queueData.map(patient => ({
+        id: patient.patientId || patient.id,
+        initials: getInitials(patient.fname, patient.lname),
+        name: `${patient.fname || ''} ${patient.lname || ''}`.trim(),
+        age: patient.age,
+        gender: patient.gender,
+        status: patient.status === 'consulting' ? 'Consulting' : 
+                patient.status === 'completed' ? 'Completed' : 'Waiting',
+        queueNum: patient.queueNumber,
+        doctor: patient.status === 'waiting' ? 'None' : (patient.assignedDoctor || 'Dr. Cruz'),
+        arrivalTime: formatTime(patient.arrivalTime || patient.createdAt)
+      }));
+      
+      setPatients(formattedPatients);
+    } catch (error) {
+      console.error('Error fetching queue data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const [patients] = useState([
-    {
-      id: 1,
-      initials: 'MS',
-      name: 'Maria Santos',
-      age: 45,
-      gender: 'Female',
-      status: 'Consulting',
-      queueNum: 1,
-      doctor: 'Dr. Cruz',
-      arrivalTime: '08:30 AM',
-    },
-    {
-      id: 2,
-      initials: 'JDC',
-      name: 'Juan Dela Cruz',
-      age: 32,
-      gender: 'Male',
-      status: 'Waiting',
-      queueNum: 2,
-      doctor: 'Dr. Cruz',
-      arrivalTime: '08:45 AM',
-    },
-  ]);
+  // Helper: Get initials from name
+  const getInitials = (fname, lname) => {
+    if (!fname && !lname) return '??';
+    const first = fname ? fname.charAt(0) : '';
+    const last = lname ? lname.charAt(0) : '';
+    return `${first}${last}`.toUpperCase();
+  };
 
-  const stats = [
-    { label: 'Completed',     value: '1', sub: 'Sessions completed',    iconBg: '#22c55e', icon: 'check' },
-    { label: 'Consulting',    value: '1', sub: 'Currently with doctor',  iconBg: '#6366f1', icon: 'user' },
-    { label: 'Waiting',       value: '3', sub: 'Average: 15 minutes',    iconBg: '#f97316', icon: 'clock' },
-    { label: 'Total Patients',value: '5', sub: 'In queue today',         iconBg: '#6366f1', icon: 'users' },
+  // Helper: Format time
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '--:--';
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Update queue number from localStorage
+  useEffect(() => {
+    const storedQueueNumber = localStorage.getItem('queueNumber');
+    if (storedQueueNumber && storedQueueNumber !== '?') {
+      setQueueNumber(storedQueueNumber);
+    }
+  }, []);
+
+
+useEffect(() => {
+  fetchQueueData();
+}, []);
+
+  useEffect(() => {
+    const link = document.createElement('link');
+    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap';
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+    const timer = setTimeout(() => setVisible(true), 20);
+    const clock = setInterval(() => setCurrentTime(new Date()), 1000);
+    
+    return () => {
+      document.head.removeChild(link);
+      clearTimeout(timer);
+      clearInterval(clock);
+    };
+  }, []);
+
+  const today = currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Stats cards data
+  const statsCards = [
+    { label: 'Completed', value: stats.completed, sub: 'Sessions completed', iconBg: '#22c55e', icon: 'check' },
+    { label: 'Consulting', value: stats.consulting, sub: 'Currently with doctor', iconBg: '#6366f1', icon: 'user' },
+    { label: 'Waiting', value: stats.waiting, sub: 'Average: 15 minutes', iconBg: '#f97316', icon: 'clock' },
+    { label: 'Total Patients', value: stats.total || (stats.completed + stats.consulting + stats.waiting), sub: 'In queue today', iconBg: '#6366f1', icon: 'users' },
   ];
 
   // SVG Icon components
@@ -69,41 +145,39 @@ function PatientWaitingForm() {
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
       </svg>
     ),
-    filter: () => (
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="22 3 2 3 10 13 10 21 14 18 14 13 22 3" />
-      </svg>
-    ),
-    search: () => (
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="11" cy="11" r="8" />
-        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-      </svg>
-    ),
-    dots: () => (
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="1" />
-        <circle cx="19" cy="12" r="1" />
-        <circle cx="5" cy="12" r="1" />
-      </svg>
-    ),
   };
 
-  useEffect(() => {
-    const link = document.createElement('link');
-    link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap';
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-    const timer = setTimeout(() => setVisible(true), 20);
-    const clock = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => {
-      document.head.removeChild(link);
-      clearTimeout(timer);
-      clearInterval(clock);
-    };
-  }, []);
-
-  const today = currentTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  if (loading && patients.length === 0) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontFamily: "'Inter', sans-serif",
+        background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)',
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: 50,
+            height: 50,
+            border: '5px solid #f3f3f3',
+            borderTop: '5px solid #190051',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            margin: '0 auto 20px auto'
+          }} />
+          <h2>Loading Queue...</h2>
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -114,7 +188,7 @@ function PatientWaitingForm() {
       transition: 'opacity 0.35s ease',
     }}>
 
-      {/* ── TOPBAR ── */}
+      {/* TOPBAR */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -127,7 +201,6 @@ function PatientWaitingForm() {
         top: 0,
         zIndex: 100,
       }}>
-        {/* Logo + Title */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{
             width: '42px', height: '42px',
@@ -143,9 +216,8 @@ function PatientWaitingForm() {
           </div>
         </div>
 
-        {/* Refresh button */}
         <button
-          onClick={() => window.location.reload()}
+          onClick={fetchQueueData}
           style={{
             display: 'flex', alignItems: 'center', gap: '0.6rem',
             padding: '0.65rem 1.6rem',
@@ -168,7 +240,7 @@ function PatientWaitingForm() {
         </button>
       </div>
 
-      {/* ── MAIN CONTENT ── */}
+      {/* MAIN CONTENT */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: '1fr 260px 240px',
@@ -178,128 +250,89 @@ function PatientWaitingForm() {
         margin: '0 auto',
       }}>
 
-        {/* ── LEFT — Queue List ── */}
+        {/* LEFT — Queue List */}
         <div style={{
           background: 'rgba(255,255,255,0.85)',
           borderRadius: '24px',
           padding: '1.5rem',
           backdropFilter: 'blur(8px)',
         }}>
-          {/* Queue header */}
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
             <div>
               <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#190051' }}>Patient Queue</div>
               <div style={{ fontSize: '0.8rem', color: '#6b6080', marginTop: '0.3rem' }}>Manage and monitor patient flow in real-time</div>
             </div>
-            <div style={{ display: 'flex', gap: '0.8rem' }}>
-              <button style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.6rem 1.2rem',
-                background: '#190051', color: '#fff',
-                border: 'none', borderRadius: '12px',
-                fontSize: '0.85rem', fontWeight: 600,
-                cursor: 'pointer', fontFamily: "'Inter', sans-serif",
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.background = '#2d0a6e'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = '#190051'; }}
-              >
-                <Icons.filter />
-                Filter
-              </button>
-              <div style={{ position: 'relative' }}>
-                <div style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', opacity: 0.6 }}>
-                  <Icons.search />
-                </div>
-                <input
-                  placeholder="Search patients..."
-                  style={{
-                    padding: '0.6rem 1rem 0.6rem 2.2rem',
-                    border: '1px solid #e0e0e0',
-                    borderRadius: '12px',
-                    fontSize: '0.85rem',
-                    fontFamily: "'Inter', sans-serif",
-                    outline: 'none',
-                    background: '#f8f9fa',
-                    width: '180px',
-                  }}
-                  onFocus={e => { e.target.style.borderColor = '#190051'; e.target.style.background = '#fff'; }}
-                  onBlur={e => { e.target.style.borderColor = '#e0e0e0'; e.target.style.background = '#f8f9fa'; }}
-                />
-              </div>
-            </div>
           </div>
 
-          {/* Divider */}
           <div style={{ height: '1px', background: '#e8e4f0', marginBottom: '1.25rem' }} />
 
-          {/* Patient Cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {patients.map((p) => (
-              <div key={p.id} style={{
-                background: p.status === 'Consulting' ? '#ffffff' : '#f4f2f9',
-                borderRadius: '16px',
-                padding: '1.2rem 1.4rem',
-                border: '1px solid',
-                borderColor: p.status === 'Consulting' ? '#e0daf0' : '#ebe8f5',
-                transition: 'all 0.2s',
-                cursor: 'pointer',
-              }}
-              onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(25,0,81,0.1)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-              onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                    {/* Avatar */}
-                    <div style={{
-                      width: '48px', height: '48px',
-                      background: '#190051', borderRadius: '50%',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontSize: '0.85rem', fontWeight: 700,
-                      flexShrink: 0,
-                    }}>{p.initials}</div>
-                    <div>
-                      <div style={{ fontSize: '1rem', fontWeight: 700, color: '#190051' }}>{p.name}</div>
-                      <div style={{ fontSize: '0.8rem', color: '#6b6080', marginTop: '0.2rem' }}>{p.age} years • {p.gender}</div>
+            {patients.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem', color: '#6b6080' }}>
+                No patients in queue
+              </div>
+            ) : (
+              patients.map((p) => (
+                <div key={p.id} style={{
+                  background: p.status === 'Consulting' ? '#ffffff' : '#f4f2f9',
+                  borderRadius: '16px',
+                  padding: '1.2rem 1.4rem',
+                  border: '1px solid',
+                  borderColor: p.status === 'Consulting' ? '#e0daf0' : '#ebe8f5',
+                  transition: 'all 0.2s',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(25,0,81,0.1)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none'; e.currentTarget.style.transform = 'translateY(0)'; }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div style={{
+                        width: '48px', height: '48px',
+                        background: '#190051', borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#fff', fontSize: '0.85rem', fontWeight: 700,
+                        flexShrink: 0,
+                      }}>{p.initials}</div>
+                      <div>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#190051' }}>{p.name}</div>
+                        <div style={{ fontSize: '0.8rem', color: '#6b6080', marginTop: '0.2rem' }}>{p.age} years • {p.gender}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+                      <span style={{
+                        padding: '0.3rem 0.9rem',
+                        borderRadius: '24px', fontSize: '0.8rem', fontWeight: 600,
+                        background: p.status === 'Consulting' ? '#eef2ff' : p.status === 'Completed' ? '#e8f5e8' : '#fff7ed',
+                        color: p.status === 'Consulting' ? '#6366f1' : p.status === 'Completed' ? '#22c55e' : '#f97316',
+                        border: `1px solid ${p.status === 'Consulting' ? '#c7d2fe' : p.status === 'Completed' ? '#a5d6a7' : '#fed7aa'}`,
+                      }}>{p.status}</span>
+                      <span style={{
+                        width: '28px', height: '28px',
+                        background: '#190051', color: '#fff',
+                        borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>#{p.queueNum}</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-                    <span style={{
-                      padding: '0.3rem 0.9rem',
-                      borderRadius: '24px', fontSize: '0.8rem', fontWeight: 600,
-                      background: p.status === 'Consulting' ? '#eef2ff' : '#fff7ed',
-                      color: p.status === 'Consulting' ? '#6366f1' : '#f97316',
-                      border: `1px solid ${p.status === 'Consulting' ? '#c7d2fe' : '#fed7aa'}`,
-                    }}>{p.status}</span>
-                    <span style={{
-                      width: '28px', height: '28px',
-                      background: '#190051', color: '#fff',
-                      borderRadius: '10px', fontSize: '0.8rem', fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>#{p.queueNum}</span>
-                    <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6b6080', padding: '0 0.2rem', display: 'flex', alignItems: 'center' }}>
-                      <Icons.dots />
-                    </button>
+                  <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem', paddingTop: '0.9rem', borderTop: '1px solid #ebe8f5' }}>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: '#9b90b0' }}>Assigned to |</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#190051' }}>{p.doctor}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: '#9b90b0' }}>Arrival time |</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#190051' }}>{p.arrivalTime}</div>
+                    </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '2rem', marginTop: '1rem', paddingTop: '0.9rem', borderTop: '1px solid #ebe8f5' }}>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', color: '#9b90b0' }}>Assigned to |</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#190051' }}>{p.doctor}</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', color: '#9b90b0' }}>Arrival time |</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#190051' }}>{p.arrivalTime}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
-        {/* ── MIDDLE — Now Serving + Your Number ── */}
+        {/* MIDDLE — Now Serving + Your Number */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Now Serving */}
           <div style={{
             background: '#190051',
             borderRadius: '24px',
@@ -309,11 +342,10 @@ function PatientWaitingForm() {
             flex: 1,
             minHeight: '180px',
           }}>
-            <div style={{ fontSize: '4rem', fontWeight: 800, color: '#ffffff', lineHeight: 1 }}>1</div>
+            <div style={{ fontSize: '4rem', fontWeight: 800, color: '#ffffff', lineHeight: 1 }}>{nowServing || '--'}</div>
             <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.7)', marginTop: '0.6rem', fontWeight: 500 }}>Now Serving</div>
           </div>
 
-          {/* Your Number */}
           <div style={{
             background: '#190051',
             borderRadius: '24px',
@@ -328,9 +360,9 @@ function PatientWaitingForm() {
           </div>
         </div>
 
-        {/* ── RIGHT — Stats ── */}
+        {/* RIGHT — Stats */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {stats.map(({ label, value, sub, icon, iconBg }) => (
+          {statsCards.map(({ label, value, sub, icon, iconBg }) => (
             <div key={label} style={{
               background: 'rgba(255,255,255,0.85)',
               borderRadius: '20px',
@@ -366,4 +398,4 @@ function PatientWaitingForm() {
   );
 }
 
-export default PatientWaitingForm;
+export default PatientWaitingForm;  

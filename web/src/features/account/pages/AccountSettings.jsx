@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import API from '../../../shared/services/api';
 
 /* ─── Keyframes & global styles ─── */
 const STYLES = `
@@ -16,10 +17,6 @@ const STYLES = `
   @keyframes pageIn {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes ripple {
-    from { transform: scale(0.8); opacity: 1; }
-    to   { transform: scale(2.2); opacity: 0; }
   }
 
   .page-wrap      { animation: pageIn 0.45s cubic-bezier(0.22,1,0.36,1) both; }
@@ -86,9 +83,11 @@ export default function AccountSettings() {
   const fileInputRef = useRef(null);
 
   const [activeTab,         setActiveTab]         = useState('Profile');
-  const [availabilityStatus,setAvailabilityStatus] = useState('Busy');
   const [showModal,         setShowModal]          = useState(false);
   const [user,              setUser]               = useState(null);
+  const [staffId,           setStaffId]            = useState(null);
+  const [loading,           setLoading]            = useState(true);
+  const [availabilityStatus, setAvailabilityStatus] = useState('Available');
 
   /* security tab state */
   const [currentPw,   setCurrentPw]   = useState('');
@@ -97,10 +96,10 @@ export default function AccountSettings() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew,     setShowNew]     = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [pwMsg,       setPwMsg]       = useState(null); // {type:'success'|'error', text}
+  const [pwMsg,       setPwMsg]       = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [photoPreview,      setPhotoPreview]       = useState(null); // base64 for display
-  const [photoFile,         setPhotoFile]          = useState(null); // File object
+  const [photoPreview,      setPhotoPreview]       = useState(null);
+  const [photoFile,         setPhotoFile]          = useState(null);
   const [showPhotoMenu,     setShowPhotoMenu]      = useState(false);
   const [dragOver,          setDragOver]           = useState(false);
 
@@ -108,35 +107,6 @@ export default function AccountSettings() {
     firstName: '', lastName: '', age: '', gender: 'Female',
     email: '', phone: '', specialization: '', department: '', role: '',
   });
-
-  /* Load user from localStorage */
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      const u = JSON.parse(storedUser);
-      setUser(u);
-      if (u.photo) setPhotoPreview(u.photo);
-      setForm({
-        firstName:      u.firstName      || u.first_name    || '',
-        lastName:       u.lastName       || u.last_name     || '',
-        age:            u.age            || '',
-        gender:         u.gender         || 'Female',
-        email:          u.email          || '',
-        phone:          u.phone          || '',
-        specialization: u.specialization || '',
-        department:     u.department     || '',
-        role:           u.role           || '',
-      });
-    }
-  }, []);
-
-  /* Close photo menu on outside click */
-  useEffect(() => {
-    if (!showPhotoMenu) return;
-    const handler = () => setShowPhotoMenu(false);
-    document.addEventListener('click', handler);
-    return () => document.removeEventListener('click', handler);
-  }, [showPhotoMenu]);
 
   /* ── helpers ── */
   const f = (key) => (val) => setForm(p => ({ ...p, [key]: val }));
@@ -181,7 +151,7 @@ export default function AccountSettings() {
 
   const handleFileInput = (e) => {
     processFile(e.target.files[0]);
-    e.target.value = ''; // reset so same file can be re-selected
+    e.target.value = '';
   };
 
   const handleDrop = (e) => {
@@ -197,25 +167,119 @@ export default function AccountSettings() {
     setShowPhotoMenu(false);
   };
 
-  /* ── Save ── */
-  const handleSave = () => {
-    const updated = {
-      ...user,
-      firstName: form.firstName, first_name: form.firstName,
-      lastName:  form.lastName,  last_name:  form.lastName,
-      age: form.age, gender: form.gender, email: form.email,
-      phone: form.phone, specialization: form.specialization,
-      department: form.department, role: form.role,
-      photo: photoPreview || null,
-    };
-    localStorage.setItem('user', JSON.stringify(updated));
-    setUser(updated);
-    setShowModal(false);
-    setShowPhotoMenu(false);
+  // Upload photo to backend
+  const uploadPhoto = async () => {
+    if (!photoFile) return null;
+    
+    const formData = new FormData();
+    formData.append('file', photoFile);
+    formData.append('email', user?.email || form.email);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8080/api/medicalstaff/upload-photo', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+      const result = await response.json();
+      if (result.success) {
+        return result.photoUrl;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      return null;
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      console.log('=== STARTING PROFILE SAVE ===');
+      console.log('availabilityStatus to save:', availabilityStatus);
+      
+      let photoUrl = user?.photo || null;
+      
+      // Upload photo if a new file was selected
+      if (photoFile) {
+        const uploadedUrl = await uploadPhoto();
+        if (uploadedUrl) {
+          photoUrl = uploadedUrl;
+          setPhotoPreview(photoUrl);
+        }
+      }
+      
+      // 1. Update user_account with ALL fields
+      const userUpdateData = {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        email: form.email,
+        role: form.role,
+        gender: form.gender,
+        age: form.age ? parseInt(form.age) : null,
+        phone: form.phone || null,
+        specialization: form.specialization || null,
+        department: form.department || null,
+        availability: availabilityStatus,
+        photo: photoUrl
+      };
+      
+      console.log('Updating user_account:', userUpdateData);
+      await API.put(`/api/auth/user/${user?.accountID}`, userUpdateData);
+      
+      // 2. Update medical_staff if staffId exists
+      if (staffId) {
+        const staffUpdateData = {
+          fname: form.firstName,
+          lname: form.lastName,
+          role: form.role,
+          specialty: form.specialization,
+          email: form.email,
+          contactNo: form.phone,
+          availability: availabilityStatus,
+          photo: photoUrl
+        };
+        
+        console.log('Updating medical_staff:', staffUpdateData);
+        await API.put(`/api/medicalstaff/update/${staffId}`, staffUpdateData);
+      }
+      
+      // 3. Update localStorage
+      const updatedUser = {
+        ...user,
+        firstName: form.firstName,
+        lastName: form.lastName,
+        age: form.age,
+        gender: form.gender,
+        email: form.email,
+        phone: form.phone,
+        specialization: form.specialization,
+        department: form.department,
+        role: form.role,
+        availability: availabilityStatus,
+        photo: photoUrl
+      };
+      
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      
+      // 4. Dispatch event to update sidebar
+      window.dispatchEvent(new CustomEvent('userUpdated', { detail: updatedUser }));
+      
+      setShowModal(false);
+      setShowPhotoMenu(false);
+      alert('Profile updated successfully!');
+      
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save profile: ' + (error.response?.data?.message || error.message));
+    }
   };
 
   /* ── Change Password ── */
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentPw || !newPw || !confirmPw) {
       setPwMsg({ type: 'error', text: 'Please fill in all fields.' });
       return;
@@ -228,10 +292,20 @@ export default function AccountSettings() {
       setPwMsg({ type: 'error', text: 'New passwords do not match.' });
       return;
     }
-    // In a real app you'd call your auth service here
-    setPwMsg({ type: 'success', text: 'Password changed successfully!' });
-    setCurrentPw(''); setNewPw(''); setConfirmPw('');
-    setTimeout(() => setPwMsg(null), 4000);
+    
+    try {
+      await API.post('/api/auth/change-password', {
+        email: form.email,
+        currentPassword: currentPw,
+        newPassword: newPw
+      });
+      
+      setPwMsg({ type: 'success', text: 'Password changed successfully!' });
+      setCurrentPw(''); setNewPw(''); setConfirmPw('');
+      setTimeout(() => setPwMsg(null), 4000);
+    } catch (error) {
+      setPwMsg({ type: 'error', text: error.response?.data?.message || 'Failed to change password' });
+    }
   };
 
   const handleTabClick = (key) => {
@@ -242,46 +316,92 @@ export default function AccountSettings() {
   const tabs = [
     { key: 'Home',     label: 'Home',     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg> },
     { key: 'Profile',  label: 'Profile',  icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg> },
-    { key: 'Security', label: 'Secuirty', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg> },
+    { key: 'Security', label: 'Security', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg> },
   ];
 
   const statusConfig = [
-    { label: 'Busy',      color: '#22c55e' },
     { label: 'Available', color: '#22c55e' },
+    { label: 'Busy',      color: '#f97316' },
     { label: 'Offline',   color: '#6b7280' },
   ];
 
   const badgeStyle = {
-    Busy:      { bg: '#fff7ed', color: '#c2410c', border: '#fdba74' },
     Available: { bg: '#f0fdf4', color: '#166534', border: '#86efac' },
+    Busy:      { bg: '#fff7ed', color: '#c2410c', border: '#fdba74' },
     Offline:   { bg: '#f9fafb', color: '#374151', border: '#d1d5db' },
   }[availabilityStatus];
 
-  /* ── Shared avatar renderer ── */
+  // Load user data
+  useEffect(() => {
+    const loadUser = async () => {
+      const storedUser = localStorage.getItem('user');
+      const token = localStorage.getItem('token');
+      
+      if (storedUser && token) {
+        const u = JSON.parse(storedUser);
+        setUser(u);
+        setForm({
+          firstName:      u.firstName      || u.first_name    || '',
+          lastName:       u.lastName       || u.last_name     || '',
+          age:            u.age            || '',
+          gender:         u.gender         || 'Female',
+          email:          u.email          || '',
+          phone:          u.phone          || u.contactNo     || '',
+          specialization: u.specialization || u.specialty     || '',
+          department:     u.department     || '',
+          role:           u.role           || '',
+        });
+        setAvailabilityStatus(u.availability || 'Available');
+        if (u.photo) setPhotoPreview(u.photo);
+        
+        // Fetch fresh staff data
+        if (u.email) {
+          try {
+            const response = await API.get(`/api/medicalstaff/user/by-email/${u.email}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.data) {
+              setStaffId(response.data.staffID);
+              if (response.data.availability) {
+                setAvailabilityStatus(response.data.availability);
+              }
+              if (response.data.photo) {
+                setPhotoPreview(response.data.photo);
+                u.photo = response.data.photo;
+                localStorage.setItem('user', JSON.stringify(u));
+              }
+            }
+          } catch (error) {
+            console.error('Error fetching staff data:', error);
+          }
+        }
+      }
+      setLoading(false);
+    };
+    loadUser();
+  }, []);
+
   const AvatarCircle = ({ size = 80, fontSize = 26, showEdit = false, onClick }) => (
     <div
       className={showEdit ? 'avatar-upload-wrap' : ''}
       onClick={onClick}
       style={{ position: 'relative', width: size, height: size, cursor: showEdit ? 'pointer' : 'default', flexShrink: 0 }}
     >
-      {/* photo or initials */}
       {photoPreview ? (
         <img
           className="avatar-img"
           src={photoPreview}
           alt="Profile"
-          style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 6px 20px rgba(25,0,81,0.25)', border: '3px solid rgba(255,255,255,0.9)', transition: 'filter 0.2s ease', display: 'block' }}
+          style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', boxShadow: '0 6px 20px rgba(25,0,81,0.25)', border: '3px solid rgba(255,255,255,0.9)' }}
         />
       ) : (
         <div
           className="avatar-initials"
-          style={{ width: size, height: size, borderRadius: '50%', background: getAvatarColor(), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize, fontWeight: 800, color: '#fff', boxShadow: '0 6px 20px rgba(25,0,81,0.25)', border: '3px solid rgba(255,255,255,0.9)', transition: 'filter 0.2s ease' }}
+          style={{ width: size, height: size, borderRadius: '50%', background: getAvatarColor(), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize, fontWeight: 800, color: '#fff', boxShadow: '0 6px 20px rgba(25,0,81,0.25)', border: '3px solid rgba(255,255,255,0.9)' }}
         >
           {getInitials()}
         </div>
       )}
-
-      {/* hover overlay (modal only) */}
       {showEdit && (
         <div
           className="avatar-overlay"
@@ -291,13 +411,9 @@ export default function AccountSettings() {
           <span style={{ fontSize: 9, color: '#fff', fontWeight: 600, letterSpacing: '0.04em' }}>CHANGE</span>
         </div>
       )}
-
-      {/* status dot (profile page) */}
       {!showEdit && (
-        <div style={{ position: 'absolute', bottom: 4, right: 2, width: 14, height: 14, borderRadius: '50%', background: availabilityStatus === 'Offline' ? '#9ca3af' : '#22c55e', border: '2.5px solid #fff' }} />
+        <div style={{ position: 'absolute', bottom: 4, right: 2, width: 14, height: 14, borderRadius: '50%', background: availabilityStatus === 'Offline' ? '#9ca3af' : availabilityStatus === 'Busy' ? '#f97316' : '#22c55e', border: '2.5px solid #fff' }} />
       )}
-
-      {/* edit pencil badge (modal) */}
       {showEdit && (
         <div style={{ position: 'absolute', bottom: 2, right: 0, width: 24, height: 24, borderRadius: '50%', background: '#190051', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2.5px solid #fff', pointerEvents: 'none' }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="white"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
@@ -306,21 +422,22 @@ export default function AccountSettings() {
     </div>
   );
 
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(150deg,#dbd5ee 0%,#cfc8e8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div>Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <>
       <style>{STYLES}</style>
-      {/* Hidden file input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleFileInput}
-        style={{ display: 'none' }}
-      />
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileInput} style={{ display: 'none' }} />
 
       <div className="page-wrap" style={{ minHeight: '100vh', background: 'linear-gradient(150deg,#dbd5ee 0%,#cfc8e8 35%,#b8b0d5 70%,#c4bce0 100%)', fontFamily: "'Poppins',sans-serif" }}>
 
-        {/* ══ HEADER ══ */}
+        {/* HEADER */}
         <div style={{ background: 'rgba(255,255,255,0.42)', backdropFilter: 'blur(16px)', borderBottom: '1px solid rgba(255,255,255,0.65)', padding: '15px 36px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 46, height: 46, background: 'linear-gradient(135deg,#190051,#3b0f8c)', borderRadius: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 5px 16px rgba(25,0,81,0.38)', flexShrink: 0 }}>
@@ -343,14 +460,14 @@ export default function AccountSettings() {
           </div>
         </div>
 
-        {/* ══ BODY ══ */}
+        {/* BODY */}
         <div style={{ padding: '36px 36px 48px' }}>
           <div style={{ marginBottom: 26 }}>
             <div style={{ fontSize: 24, fontWeight: 800, color: '#190051', letterSpacing: '-0.4px' }}>Personal Profile</div>
             <div style={{ fontSize: 12, color: 'rgba(25,0,81,0.48)', marginTop: 4 }}>Manage your account and preferences security</div>
           </div>
 
-          {/* ════ PROFILE TAB ════ */}
+          {/* PROFILE TAB */}
           {activeTab === 'Profile' && (
           <div className="card-wrap" style={{ background: 'rgba(255,255,255,0.68)', backdropFilter: 'blur(12px)', borderRadius: 20, padding: '28px 30px 32px', boxShadow: '0 4px 32px rgba(25,0,81,0.1)', border: '1px solid rgba(255,255,255,0.9)' }}>
 
@@ -362,10 +479,7 @@ export default function AccountSettings() {
               </button>
             </div>
 
-            {/* ── INNER WHITE BLOCK ── */}
             <div style={{ background: '#fff', borderRadius: 14, padding: '24px 26px 28px', boxShadow: '0 1px 10px rgba(25,0,81,0.06)' }}>
-
-              {/* TOP row */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 22, paddingBottom: 24, borderBottom: '1.5px solid #f0ecf9' }}>
                 <AvatarCircle size={80} fontSize={26} />
 
@@ -379,10 +493,10 @@ export default function AccountSettings() {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', columnGap: 32, rowGap: 16, flexShrink: 0 }}>
                   {[
-                    { label: 'Age',    value: form.age   ? `${form.age} Years` : '45 Years' },
-                    { label: 'Email',  value: form.email  || 'sophie.aloria@gmail.com' },
-                    { label: 'Gender', value: form.gender || 'Female' },
-                    { label: 'Phone',  value: form.phone  || '09750768513' },
+                    { label: 'Age',    value: form.age   ? `${form.age} Years` : '--' },
+                    { label: 'Email',  value: form.email  || 'Not set' },
+                    { label: 'Gender', value: form.gender || 'Not set' },
+                    { label: 'Phone',  value: form.phone  || 'Not set' },
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <div style={{ fontSize: 11, color: 'rgba(25,0,81,0.36)', marginBottom: 3, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</div>
@@ -392,14 +506,13 @@ export default function AccountSettings() {
                 </div>
               </div>
 
-              {/* BOTTOM row */}
               <div style={{ display: 'flex', alignItems: 'flex-start', paddingTop: 24 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 16, fontWeight: 700, color: '#190051', marginBottom: 20, letterSpacing: '-0.2px' }}>Professional Information</div>
                   <div style={{ display: 'flex', gap: 56 }}>
                     {[
-                      { label: 'Specialization', value: form.specialization || 'Dermatology' },
-                      { label: 'Department',      value: form.department     || 'Physician'   },
+                      { label: 'Specialization', value: form.specialization || 'Not specified' },
+                      { label: 'Department',      value: form.department     || 'Not specified' },
                     ].map(({ label, value }) => (
                       <div key={label}>
                         <div style={{ fontSize: 11, color: 'rgba(25,0,81,0.38)', marginBottom: 7, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>{label}</div>
@@ -417,7 +530,7 @@ export default function AccountSettings() {
                     {statusConfig.map(({ label, color }) => {
                       const isSel = availabilityStatus === label;
                       return (
-                        <div key={label} className="status-row" onClick={() => setAvailabilityStatus(label)} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
+                        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                           <div style={{ width: 21, height: 21, borderRadius: '50%', background: isSel ? color : '#e9e4f5', border: `2px solid ${isSel ? color : '#d4cfe8'}`, transition: 'all 0.2s ease', flexShrink: 0, boxShadow: isSel ? `0 0 0 4px ${color}28` : 'none' }} />
                           <span style={{ fontSize: 14, fontWeight: isSel ? 700 : 400, color: isSel ? '#190051' : 'rgba(25,0,81,0.42)', transition: 'all 0.18s ease' }}>{label}</span>
                         </div>
@@ -426,27 +539,23 @@ export default function AccountSettings() {
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
-          )} {/* end Profile tab */}
+          )}
 
-          {/* ════ SECURITY TAB ════ */}
+          {/* SECURITY TAB */}
           {activeTab === 'Security' && (
           <div className="card-wrap" style={{ background: 'rgba(255,255,255,0.68)', backdropFilter: 'blur(12px)', borderRadius: 20, padding: '28px 30px 32px', boxShadow: '0 4px 32px rgba(25,0,81,0.1)', border: '1px solid rgba(255,255,255,0.9)' }}>
 
-            {/* Card title */}
             <div style={{ marginBottom: 22 }}>
               <div style={{ fontSize: 20, fontWeight: 800, color: '#190051', letterSpacing: '-0.3px' }}>Password Security</div>
               <div style={{ fontSize: 12, color: 'rgba(25,0,81,0.45)', marginTop: 4 }}>Secure your account and data</div>
             </div>
 
-            {/* Inner white block — two columns */}
             <div style={{ background: '#fff', borderRadius: 14, padding: '32px 36px', boxShadow: '0 1px 10px rgba(25,0,81,0.06)', display: 'flex', gap: 0, alignItems: 'flex-start' }}>
 
               {/* LEFT — Change Password */}
               <div style={{ flex: 1, paddingRight: 48, borderRight: '1.5px solid #f0ecf9' }}>
-                {/* Lock icon */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 20 }}>
                   <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'linear-gradient(135deg,#f0ecf9,#e4ddf5)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, boxShadow: '0 4px 12px rgba(25,0,81,0.12)' }}>
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#190051" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -458,7 +567,6 @@ export default function AccountSettings() {
                   <div style={{ fontSize: 12, color: 'rgba(25,0,81,0.45)', marginTop: 4, textAlign: 'center' }}>To change your password, please fill all fields below</div>
                 </div>
 
-                {/* Alert message */}
                 {pwMsg && (
                   <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 10, background: pwMsg.type === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${pwMsg.type === 'success' ? '#86efac' : '#fca5a5'}`, color: pwMsg.type === 'success' ? '#166534' : '#dc2626', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
                     {pwMsg.type === 'success'
@@ -469,9 +577,7 @@ export default function AccountSettings() {
                   </div>
                 )}
 
-                {/* Password fields */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  {/* Current */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <label style={{ fontSize: 12.5, fontWeight: 600, color: '#190051' }}>Current Password</label>
                     <div className="pw-input-wrap">
@@ -483,15 +589,11 @@ export default function AccountSettings() {
                         style={{ width: '100%', padding: '10px 42px 10px 14px', borderRadius: 10, border: '1.5px solid rgba(25,0,81,0.15)', fontFamily: "'Poppins',sans-serif", fontSize: 13.5, color: '#190051', background: '#faf9fc', boxSizing: 'border-box', transition: 'all 0.18s ease' }}
                       />
                       <button className="pw-eye" onClick={() => setShowCurrent(p => !p)}>
-                        {showCurrent
-                          ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                          : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
-                        }
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zM12 8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
                       </button>
                     </div>
                   </div>
 
-                  {/* New */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <label style={{ fontSize: 12.5, fontWeight: 600, color: '#190051' }}>New Password</label>
                     <div className="pw-input-wrap">
@@ -503,13 +605,9 @@ export default function AccountSettings() {
                         style={{ width: '100%', padding: '10px 42px 10px 14px', borderRadius: 10, border: '1.5px solid rgba(25,0,81,0.15)', fontFamily: "'Poppins',sans-serif", fontSize: 13.5, color: '#190051', background: '#faf9fc', boxSizing: 'border-box', transition: 'all 0.18s ease' }}
                       />
                       <button className="pw-eye" onClick={() => setShowNew(p => !p)}>
-                        {showNew
-                          ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                          : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
-                        }
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zM12 8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
                       </button>
                     </div>
-                    {/* Strength bar */}
                     {newPw && (
                       <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
                         {[1,2,3,4].map(i => {
@@ -524,7 +622,6 @@ export default function AccountSettings() {
                     )}
                   </div>
 
-                  {/* Confirm */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <label style={{ fontSize: 12.5, fontWeight: 600, color: '#190051' }}>Confirm Password</label>
                     <div className="pw-input-wrap">
@@ -536,10 +633,7 @@ export default function AccountSettings() {
                         style={{ width: '100%', padding: '10px 42px 10px 14px', borderRadius: 10, border: `1.5px solid ${confirmPw && confirmPw !== newPw ? '#fca5a5' : 'rgba(25,0,81,0.15)'}`, fontFamily: "'Poppins',sans-serif", fontSize: 13.5, color: '#190051', background: '#faf9fc', boxSizing: 'border-box', transition: 'all 0.18s ease' }}
                       />
                       <button className="pw-eye" onClick={() => setShowConfirm(p => !p)}>
-                        {showConfirm
-                          ? <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
-                          : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
-                        }
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zM12 8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
                       </button>
                     </div>
                     {confirmPw && confirmPw !== newPw && (
@@ -547,7 +641,6 @@ export default function AccountSettings() {
                     )}
                   </div>
 
-                  {/* Submit */}
                   <button className="chg-pw-btn" onClick={handleChangePassword} style={{ width: '100%', padding: '12px 0', borderRadius: 11, border: 'none', background: 'linear-gradient(135deg,#6c5ce7,#190051)', color: '#fff', fontSize: 14, fontWeight: 700, fontFamily: "'Poppins',sans-serif", cursor: 'pointer', transition: 'all 0.2s ease', boxShadow: '0 5px 16px rgba(25,0,81,0.28)', marginTop: 4 }}>
                     Change Password
                   </button>
@@ -559,7 +652,6 @@ export default function AccountSettings() {
                 <div style={{ fontSize: 17, fontWeight: 800, color: '#190051', letterSpacing: '-0.2px', marginBottom: 6 }}>Your Devices</div>
                 <div style={{ fontSize: 12.5, color: 'rgba(25,0,81,0.48)', marginBottom: 22 }}>Your devices link to this account.</div>
 
-                {/* Device list */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
                   {[
                     { icon: '💻', name: 'This device', detail: 'Windows · Chrome · Active now', current: true },
@@ -586,12 +678,12 @@ export default function AccountSettings() {
 
             </div>
           </div>
-          )} {/* end Security tab */}
+          )}
 
         </div>
       </div>
 
-      {/* ══ LOGOUT CONFIRM MODAL ══ */}
+      {/* LOGOUT CONFIRM MODAL */}
       {showLogoutConfirm && (
         <div className="modal-overlay" onClick={() => setShowLogoutConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(10,0,30,0.48)', backdropFilter: 'blur(7px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 400, padding: '32px 28px', boxShadow: '0 24px 80px rgba(25,0,81,0.28)', border: '1px solid rgba(25,0,81,0.08)', textAlign: 'center' }}>
@@ -614,35 +706,25 @@ export default function AccountSettings() {
         </div>
       )}
 
-      {/* ══ EDIT PROFILE MODAL ══ */}
+      {/* EDIT PROFILE MODAL */}
       {showModal && (
         <div className="modal-overlay" onClick={() => { setShowModal(false); setShowPhotoMenu(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(10,0,30,0.48)', backdropFilter: 'blur(7px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div className="modal-box" onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 22, width: '100%', maxWidth: 600, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 80px rgba(25,0,81,0.28)', border: '1px solid rgba(25,0,81,0.08)' }}>
 
-            {/* Modal header */}
             <div style={{ padding: '24px 28px 20px', borderBottom: '1.5px solid #f0ecf9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, background: '#fff', borderRadius: '22px 22px 0 0', zIndex: 2 }}>
               <div>
                 <div style={{ fontSize: 18, fontWeight: 800, color: '#190051', letterSpacing: '-0.3px' }}>Edit Profile</div>
                 <div style={{ fontSize: 11.5, color: 'rgba(25,0,81,0.46)', marginTop: 3 }}>Update your personal and professional details</div>
               </div>
-              <button onClick={() => setShowModal(false)} style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(25,0,81,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease', flexShrink: 0 }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(25,0,81,0.14)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(25,0,81,0.07)'}>
+              <button onClick={() => setShowModal(false)} style={{ width: 34, height: 34, borderRadius: '50%', border: 'none', background: 'rgba(25,0,81,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease', flexShrink: 0 }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="#190051"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
               </button>
             </div>
 
-            {/* ── PHOTO UPLOAD SECTION ── */}
+            {/* PHOTO UPLOAD SECTION */}
             <div style={{ padding: '26px 28px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
-
-              {/* Avatar with click menu */}
               <div style={{ position: 'relative' }}>
-                <AvatarCircle
-                  size={90} fontSize={28} showEdit
-                  onClick={(e) => { e.stopPropagation(); setShowPhotoMenu(p => !p); }}
-                />
-
-                {/* Dropdown menu */}
+                <AvatarCircle size={90} fontSize={28} showEdit onClick={(e) => { e.stopPropagation(); setShowPhotoMenu(p => !p); }} />
                 {showPhotoMenu && (
                   <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: '105%', left: '50%', transform: 'translateX(-50%)', background: '#fff', borderRadius: 14, boxShadow: '0 8px 32px rgba(25,0,81,0.18)', border: '1px solid rgba(25,0,81,0.1)', minWidth: 200, zIndex: 10, overflow: 'hidden', animation: 'slideUp 0.2s cubic-bezier(0.22,1,0.36,1) both' }}>
                     <button className="photo-option" onClick={() => { fileInputRef.current.click(); setShowPhotoMenu(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13.5, fontWeight: 600, color: '#190051', fontFamily: "'Poppins',sans-serif", transition: 'background 0.15s ease', textAlign: 'left' }}>
@@ -660,7 +742,6 @@ export default function AccountSettings() {
                 )}
               </div>
 
-              {/* Drag & drop zone */}
               <div
                 onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
@@ -675,7 +756,6 @@ export default function AccountSettings() {
                 <div style={{ fontSize: 11, color: 'rgba(25,0,81,0.35)' }}>PNG, JPG, GIF up to 5MB</div>
               </div>
 
-              {/* Preview strip if photo selected */}
               {photoPreview && (
                 <div style={{ width: '100%', background: '#f5f3fc', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
                   <img src={photoPreview} alt="Preview" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(25,0,81,0.15)' }} />
@@ -683,9 +763,7 @@ export default function AccountSettings() {
                     <div style={{ fontSize: 12.5, fontWeight: 600, color: '#190051' }}>Photo selected</div>
                     <div style={{ fontSize: 11, color: 'rgba(25,0,81,0.45)' }}>This will be saved when you click Save Changes</div>
                   </div>
-                  <button onClick={handleRemovePhoto} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(25,0,81,0.4)', padding: 4, borderRadius: 6, transition: 'color 0.15s ease', display: 'flex', alignItems: 'center' }}
-                    onMouseEnter={e => e.currentTarget.style.color = '#dc2626'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(25,0,81,0.4)'}>
+                  <button onClick={handleRemovePhoto} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(25,0,81,0.4)', padding: 4, borderRadius: 6, transition: 'color 0.15s ease', display: 'flex', alignItems: 'center' }}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
                   </button>
                 </div>
@@ -694,7 +772,6 @@ export default function AccountSettings() {
 
             {/* Form fields */}
             <div style={{ padding: '22px 28px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-
               <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(25,0,81,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', paddingBottom: 2, borderBottom: '1px solid #f0ecf9' }}>
                 Personal Details
               </div>
@@ -716,7 +793,25 @@ export default function AccountSettings() {
                 <Field label="Department"     value={form.department}     onChange={f('department')} />
               </div>
 
-              {/* Action buttons */}
+              {/* Availability Status Section in Modal */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(25,0,81,0.4)', letterSpacing: '0.08em', textTransform: 'uppercase', paddingBottom: 2, borderBottom: '1px solid #f0ecf9', marginTop: 4 }}>
+                Availability Status
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {statusConfig.map(({ label, color }) => {
+                  const isSel = availabilityStatus === label;
+                  return (
+                    <div key={label} className="status-row" onClick={() => {
+                      console.log('Setting availability to:', label);
+                      setAvailabilityStatus(label);
+                    }} style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer', userSelect: 'none' }}>
+                      <div style={{ width: 21, height: 21, borderRadius: '50%', background: isSel ? color : '#e9e4f5', border: `2px solid ${isSel ? color : '#d4cfe8'}`, transition: 'all 0.2s ease', flexShrink: 0, boxShadow: isSel ? `0 0 0 4px ${color}28` : 'none' }} />
+                      <span style={{ fontSize: 14, fontWeight: isSel ? 700 : 400, color: isSel ? '#190051' : 'rgba(25,0,81,0.42)', transition: 'all 0.18s ease' }}>{label}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
               <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
                 <button className="cancel-btn" onClick={() => setShowModal(false)} style={{ flex: 1, padding: '11px 0', borderRadius: 11, border: '1.5px solid rgba(25,0,81,0.18)', background: 'transparent', color: 'rgba(25,0,81,0.6)', fontSize: 13.5, fontWeight: 600, fontFamily: "'Poppins',sans-serif", cursor: 'pointer', transition: 'all 0.18s ease' }}>
                   Cancel

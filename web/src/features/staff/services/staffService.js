@@ -28,6 +28,7 @@ export const staffService = {
   getAllStaff: async () => {
     try {
       const response = await API.get('/api/medicalstaff/all');
+      console.log('✅ Fetched staff:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching staff:', error);
@@ -46,10 +47,29 @@ export const staffService = {
     }
   },
 
-  // Update staff
+  // Update staff - FIXED: Map frontend field names to backend field names
   updateStaff: async (id, staffData) => {
     try {
-      const response = await API.put(`/api/medicalstaff/update/${id}`, staffData);
+      // Split name into first and last name
+      const nameParts = (staffData.name || '').split(' ');
+      const fname = nameParts[0] || '';
+      const lname = nameParts.slice(1).join(' ') || '';
+      
+      // Format data for backend
+      const formattedData = {
+        fname: fname,
+        lname: lname,
+        role: staffData.role,
+        specialty: staffData.specialization,
+        email: staffData.email,
+        contactNo: staffData.contact,
+        availability: staffData.availability
+      };
+      
+      console.log('📤 Updating staff with data:', formattedData);
+      
+      const response = await API.put(`/api/medicalstaff/update/${id}`, formattedData);
+      console.log('✅ Updated staff:', response.data);
       return response.data;
     } catch (error) {
       console.error(`❌ Error updating staff ${id}:`, error);
@@ -61,6 +81,7 @@ export const staffService = {
   deleteStaff: async (id) => {
     try {
       const response = await API.delete(`/api/medicalstaff/delete/${id}`);
+      console.log('✅ Deleted staff:', response.data);
       return response.data;
     } catch (error) {
       console.error(`❌ Error deleting staff ${id}:`, error);
@@ -68,10 +89,29 @@ export const staffService = {
     }
   },
 
-  // Add new staff
+  // Add new staff - FIXED: Map frontend field names to backend field names
   addStaff: async (staffData) => {
     try {
-      const response = await API.post('/api/medicalstaff/add', staffData);
+      // Split name into first and last name
+      const nameParts = (staffData.name || '').split(' ');
+      const fname = nameParts[0] || '';
+      const lname = nameParts.slice(1).join(' ') || '';
+      
+      // Format data for backend
+      const formattedData = {
+        fname: fname,
+        lname: lname,
+        role: staffData.role,
+        specialty: staffData.specialization,
+        email: staffData.email,
+        contactNo: staffData.contact,
+        availability: staffData.availability
+      };
+      
+      console.log('📤 Adding staff with data:', formattedData);
+      
+      const response = await API.post('/api/medicalstaff/add', formattedData);
+      console.log('✅ Added staff:', response.data);
       return response.data;
     } catch (error) {
       console.error('❌ Error adding staff:', error);

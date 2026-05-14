@@ -15,4 +15,5 @@ public interface MedicalStaffRepository extends JpaRepository<MedicalStaffEntity
     List<MedicalStaffEntity> findByRole(String role);
     Optional<MedicalStaffEntity> findByEmail(String email);
     List<MedicalStaffEntity> findBySpecialty(String specialty);
+    
 }
