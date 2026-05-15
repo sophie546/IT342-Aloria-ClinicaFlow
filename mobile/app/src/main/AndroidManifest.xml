@@ -20,7 +20,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
 
-        <!-- Dashboard Activity - ADD THIS -->
+        <!-- Patient Queue Activity -->
+        <activity
+            android:name=".activities.PatientQueueActivity"
+            android:exported="false" />
+
+        <!-- Dashboard Activity -->
         <activity
             android:name=".DashboardActivity"
             android:exported="false" />
@@ -28,6 +33,7 @@
         <activity
             android:name=".RegisterActivity"
             android:exported="false" />
+
 
         <activity
             android:name=".MainActivity"

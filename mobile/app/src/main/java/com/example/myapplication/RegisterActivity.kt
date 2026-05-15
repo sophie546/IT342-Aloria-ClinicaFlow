@@ -11,6 +11,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.myapplication.activities.PatientQueueActivity
 import com.example.myapplication.models.LoginResponse
 import com.example.myapplication.models.RegisterRequest
 import com.example.myapplication.network.RetrofitClient
@@ -22,10 +23,14 @@ import retrofit2.Response
 
 class RegisterActivity : AppCompatActivity() {
 
+    private lateinit var tokenManager: TokenManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_register)
+
+        tokenManager = TokenManager(this)
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -86,17 +91,32 @@ class RegisterActivity : AppCompatActivity() {
                 if (response.isSuccessful) {
                     val registerResponse = response.body()
                     if (registerResponse?.success == true) {
-                        // Check if the message contains verification info
+                        // Save the token from registration response
+                        registerResponse.token?.let { token ->
+                            tokenManager.saveToken(token)
+                        }
+
+                        // Save user info
+                        val userMap = registerResponse.user
+                        if (userMap != null) {
+                            val userEmail = userMap["email"] as? String ?: email
+                            val userRole = userMap["role"] as? String ?: role
+                            val userId = (userMap["id"] as? Number)?.toLong() ?: 0
+                            val userFirstName = userMap["firstName"] as? String ?: firstName
+                            val userLastName = userMap["lastName"] as? String ?: lastName
+
+                            tokenManager.saveUser(userId, userEmail, userRole, userFirstName, userLastName)
+                        }
+
                         val message = registerResponse.message ?: "Registration Successful!"
 
                         if (message.contains("verification email") || message.contains("verify")) {
-                            // Show verification dialog
-                            showVerificationDialog(email, message)
+                            // Show verification dialog but still log them in
+                            showVerificationDialogAndNavigate(email, message)
                         } else {
-                            // Show success and go to login
-                            Toast.makeText(this@RegisterActivity, message, Toast.LENGTH_LONG).show()
-                            startActivity(Intent(this@RegisterActivity, MainActivity::class.java))
-                            finish()
+                            // Navigate directly to Patient Queue
+                            Toast.makeText(this@RegisterActivity, "Registration Successful!", Toast.LENGTH_LONG).show()
+                            navigateToPatientQueue()
                         }
                     } else {
                         val errorMsg = registerResponse?.message ?: "Registration failed"
@@ -113,15 +133,25 @@ class RegisterActivity : AppCompatActivity() {
         })
     }
 
-    private fun showVerificationDialog(email: String, message: String) {
+    private fun showVerificationDialogAndNavigate(email: String, message: String) {
         AlertDialog.Builder(this)
             .setTitle("Verify Your Email")
-            .setMessage("$message\n\nWe've sent a verification link to:\n\n$email\n\nPlease check your email inbox (and spam folder) and click the verification link to activate your account.")
-            .setPositiveButton("OK") { _, _ ->
+            .setMessage("$message\n\nWe've sent a verification link to:\n\n$email\n\nPlease check your email inbox (and spam folder) and click the verification link to activate your account.\n\nYou can still access the Patient Queue while waiting for verification.")
+            .setPositiveButton("Go to Patient Queue") { _, _ ->
+                navigateToPatientQueue()
+            }
+            .setNegativeButton("Later") { _, _ ->
                 startActivity(Intent(this, MainActivity::class.java))
                 finish()
             }
             .setCancelable(false)
             .show()
+    }
+
+    private fun navigateToPatientQueue() {
+        val intent = Intent(this, PatientQueueActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        startActivity(intent)
+        finish()
     }
 }

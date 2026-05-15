@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import com.example.myapplication.activities.PatientQueueActivity
 import com.example.myapplication.models.LoginRequest
 import com.example.myapplication.models.LoginResponse
 import com.example.myapplication.network.RetrofitClient
@@ -30,7 +31,8 @@ class MainActivity : AppCompatActivity() {
 
         // Check if already logged in
         if (tokenManager.isLoggedIn()) {
-            startActivity(Intent(this, DashboardActivity::class.java))
+            // ✅ Changed from DashboardActivity to PatientQueueActivity
+            startActivity(Intent(this, PatientQueueActivity::class.java))
             finish()
             return
         }
@@ -71,7 +73,7 @@ class MainActivity : AppCompatActivity() {
                     if (loginResponse?.success == true) {
                         // Save token
                         loginResponse.token?.let { token ->
-                            tokenManager.saveToken(token)  // ✅ Changed from saveTokens to saveToken
+                            tokenManager.saveToken(token)
                         }
 
                         // Extract user info from the user map
@@ -88,8 +90,8 @@ class MainActivity : AppCompatActivity() {
 
                         Toast.makeText(this@MainActivity, loginResponse.message ?: "Login Successful!", Toast.LENGTH_SHORT).show()
 
-                        // Navigate to Dashboard
-                        startActivity(Intent(this@MainActivity, DashboardActivity::class.java))
+                        // ✅ Navigate to PatientQueueActivity instead of Dashboard
+                        startActivity(Intent(this@MainActivity, PatientQueueActivity::class.java))
                         finish()
                     } else {
                         val errorMsg = loginResponse?.message ?: "Login failed"
