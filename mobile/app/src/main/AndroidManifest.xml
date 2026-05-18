@@ -20,6 +20,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
 
+        <activity
+            android:name=".activities.ProfileActivity"
+            android:parentActivityName=".activities.PatientQueueActivity" />
+
         <!-- Patient Queue Activity -->
         <activity
             android:name=".activities.PatientQueueActivity"

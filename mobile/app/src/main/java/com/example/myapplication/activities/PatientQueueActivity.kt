@@ -1,10 +1,12 @@
 package com.example.myapplication.activities
 
 import android.app.AlertDialog
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.LayoutInflater
+import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -63,6 +65,7 @@ class PatientQueueActivity : AppCompatActivity() {
         setupRecyclerView()
         setupSearchListener()
         setupSwipeRefresh()
+        setupBurgerMenu()
 
         // Fetch real data from backend
         fetchQueueData()
@@ -106,6 +109,48 @@ class PatientQueueActivity : AppCompatActivity() {
         swipeRefreshLayout.setOnRefreshListener {
             fetchQueueData()
         }
+    }
+
+    private fun setupBurgerMenu() {
+        val btnBurgerMenu = findViewById<ImageView>(R.id.btnBurgerMenu)
+        btnBurgerMenu.setOnClickListener { view ->
+            showPopupMenu(view)
+        }
+    }
+
+    private fun showPopupMenu(view: View) {
+        val popupMenu = android.widget.PopupMenu(this, view)
+        popupMenu.menuInflater.inflate(R.menu.drawer_menu, popupMenu.menu)
+
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.nav_account_settings -> {
+                    // Navigate to Profile Activity
+                    val intent = Intent(this, ProfileActivity::class.java)
+                    startActivity(intent)
+                    true
+                }
+                R.id.nav_logout -> {
+                    showLogoutDialog()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        popupMenu.show()
+    }
+
+    private fun showLogoutDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Logout")
+            .setMessage("Are you sure you want to logout?")
+            .setPositiveButton("Yes") { _, _ ->
+                tokenManager.clearToken()
+                finish()
+            }
+            .setNegativeButton("No", null)
+            .show()
     }
 
     private fun fetchQueueData() {
@@ -258,11 +303,6 @@ class PatientQueueActivity : AppCompatActivity() {
         etAge.setText(patient.age.toString())
         etDoctor.setText(patient.assignedDoctor)
 
-        // Enable all fields for editing
-        // etFirstName.isEnabled = true (default)
-        // etLastName.isEnabled = true (default)
-        // etAge.isEnabled = true (default)
-
         val statuses = arrayOf("waiting", "consulting", "completed")
         val displayStatuses = arrayOf("WAITING", "CONSULTING", "COMPLETED")
         val statusAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, displayStatuses)
@@ -277,9 +317,9 @@ class PatientQueueActivity : AppCompatActivity() {
                 val request = UpdatePatientStatusRequest(
                     status = statuses[spinnerStatus.selectedItemPosition],
                     assignedDoctor = etDoctor.text.toString(),
-                    fname = etFirstName.text.toString(),      // SEND THIS
-                    lname = etLastName.text.toString(),       // SEND THIS
-                    age = etAge.text.toString().toIntOrNull() // SEND THIS
+                    fname = etFirstName.text.toString(),
+                    lname = etLastName.text.toString(),
+                    age = etAge.text.toString().toIntOrNull()
                 )
                 updatePatient(patient.id, request)
             }
@@ -298,7 +338,6 @@ class PatientQueueActivity : AppCompatActivity() {
                     val result = response.body()
                     if (result?.success == true) {
                         Toast.makeText(this@PatientQueueActivity, "Patient updated successfully", Toast.LENGTH_SHORT).show()
-                        // Refresh the list
                         fetchQueueData()
                     } else {
                         Toast.makeText(this@PatientQueueActivity, result?.message ?: "Update failed", Toast.LENGTH_SHORT).show()

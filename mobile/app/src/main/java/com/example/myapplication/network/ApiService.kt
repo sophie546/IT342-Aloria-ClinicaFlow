@@ -1,11 +1,6 @@
 package com.example.myapplication.network
 
-import com.example.myapplication.models.LoginRequest
-import com.example.myapplication.models.LoginResponse
-import com.example.myapplication.models.RegisterRequest
-import com.example.myapplication.models.PatientQueueResponse
-import com.example.myapplication.models.UpdatePatientResponse
-import com.example.myapplication.models.UpdatePatientStatusRequest  // Add this import
+import com.example.myapplication.models.*
 import retrofit2.Call
 import retrofit2.http.*
 
@@ -15,23 +10,45 @@ interface ApiService {
     fun login(@Body request: LoginRequest): Call<LoginResponse>
 
     @POST("/api/auth/register")
-    fun register(@Body request: RegisterRequest): Call<LoginResponse>
+    fun register(@Body request: RegisterRequest): Call<RegisterResponse>  // ← CHANGE THIS to RegisterResponse
 
-    // GET active queue (waiting + consulting only)
+    // ========== PATIENT QUEUE ==========
     @GET("/api/patient/queue/all")
     fun getQueue(): Call<PatientQueueResponse>
 
-    // UPDATE patient status
     @PUT("/api/patient/{id}")
     fun updatePatient(
         @Path("id") id: String,
         @Body request: UpdatePatientStatusRequest
     ): Call<UpdatePatientResponse>
 
-    // REMOVE from queue (mark as completed)
     @DELETE("/api/patient/{id}")
     fun deletePatient(@Path("id") id: String): Call<PatientQueueResponse>
 
     @DELETE("/api/patient/{id}/permanent")
     fun permanentDeletePatient(@Path("id") id: String): Call<UpdatePatientResponse>
+
+    // ========== PROFILE / ACCOUNT SETTINGS ==========
+
+    // Get user profile by account ID
+    @GET("/api/auth/user/{accountId}")
+    fun getUserProfile(@Path("accountId") accountId: Int): Call<UserProfileResponse>
+
+    // Update user profile
+    @PUT("/api/auth/user/{accountId}")
+    fun updateProfile(
+        @Path("accountId") accountId: Int,
+        @Body request: UpdateProfileRequest
+    ): Call<UpdateProfileResponse>
+
+    // Change password
+    @POST("/api/auth/change-password")
+    fun changePassword(@Body request: ChangePasswordRequest): Call<ChangePasswordResponse>
+
+    // Delete account
+    @DELETE("/api/user/account")
+    fun deleteAccount(): Call<DeleteAccountResponse>
+    @POST("/api/auth/logout-all")
+    fun logoutAllDevices(): Call<LogoutAllDevicesResponse>
+
 }

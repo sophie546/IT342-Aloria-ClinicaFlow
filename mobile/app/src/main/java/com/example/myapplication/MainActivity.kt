@@ -5,10 +5,7 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.example.myapplication.activities.PatientQueueActivity
 import com.example.myapplication.models.LoginRequest
 import com.example.myapplication.models.LoginResponse
@@ -24,23 +21,14 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
         tokenManager = TokenManager(this)
 
-        // Check if already logged in
-        if (tokenManager.isLoggedIn()) {
-            // ✅ Changed from DashboardActivity to PatientQueueActivity
+        if (tokenManager.hasToken()) {
             startActivity(Intent(this, PatientQueueActivity::class.java))
             finish()
             return
-        }
-
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
         }
 
         val etEmail = findViewById<TextInputEditText>(R.id.etEmail)
@@ -70,32 +58,43 @@ class MainActivity : AppCompatActivity() {
             override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
                 if (response.isSuccessful) {
                     val loginResponse = response.body()
+
                     if (loginResponse?.success == true) {
                         // Save token
                         loginResponse.token?.let { token ->
                             tokenManager.saveToken(token)
                         }
 
-                        // Extract user info from the user map
-                        val userMap = loginResponse.user
-                        if (userMap != null) {
-                            val userEmail = userMap["email"] as? String ?: email
-                            val userRole = userMap["role"] as? String ?: "STAFF"
-                            val userId = (userMap["id"] as? Number)?.toLong() ?: 0
-                            val firstName = userMap["firstName"] as? String
-                            val lastName = userMap["lastName"] as? String
+                        // Get user data from the "user" field
+                        val user = loginResponse.user
+                        if (user != null) {
+                            val accountID = (user["accountID"] as? Number)?.toInt() ?: -1
+                            val firstName = user["firstName"] as? String ?: ""
+                            val lastName = user["lastName"] as? String ?: ""
+                            val userEmail = user["email"] as? String ?: email
+                            val userRole = user["role"] as? String ?: "STAFF"
 
-                            tokenManager.saveUser(userId, userEmail, userRole, firstName, lastName)
+                            tokenManager.saveUserFromResponse(
+                                accountID = accountID,
+                                firstName = firstName,
+                                lastName = lastName,
+                                email = userEmail,
+                                role = userRole,
+                                age = null,
+                                gender = null,
+                                phone = null,
+                                specialization = null,
+                                department = null,
+                                availability = null,
+                                photo = null
+                            )
                         }
 
-                        Toast.makeText(this@MainActivity, loginResponse.message ?: "Login Successful!", Toast.LENGTH_SHORT).show()
-
-                        // ✅ Navigate to PatientQueueActivity instead of Dashboard
+                        Toast.makeText(this@MainActivity, "Login Successful!", Toast.LENGTH_SHORT).show()
                         startActivity(Intent(this@MainActivity, PatientQueueActivity::class.java))
                         finish()
                     } else {
-                        val errorMsg = loginResponse?.message ?: "Login failed"
-                        Toast.makeText(this@MainActivity, errorMsg, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@MainActivity, loginResponse?.message ?: "Login failed", Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     Toast.makeText(this@MainActivity, "Server Error: ${response.code()}", Toast.LENGTH_SHORT).show()
