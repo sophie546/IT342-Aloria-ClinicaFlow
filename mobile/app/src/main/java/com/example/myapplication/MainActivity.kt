@@ -3,9 +3,11 @@ package com.example.myapplication
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Button
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import com.example.myapplication.activities.LandingActivity
 import com.example.myapplication.activities.PatientQueueActivity
 import com.example.myapplication.models.LoginRequest
 import com.example.myapplication.models.LoginResponse
@@ -33,6 +35,14 @@ class MainActivity : AppCompatActivity() {
 
         val etEmail = findViewById<TextInputEditText>(R.id.etEmail)
         val etPassword = findViewById<TextInputEditText>(R.id.etPassword)
+
+        // BACK BUTTON - goes back to Landing Page
+        findViewById<ImageButton>(R.id.btnBack).setOnClickListener {
+            val intent = Intent(this, LandingActivity::class.java)
+            intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK
+            startActivity(intent)
+            finish()
+        }
 
         findViewById<TextView>(R.id.tvRegister).setOnClickListener {
             startActivity(Intent(this, RegisterActivity::class.java))

@@ -30,4 +30,9 @@
     <color name="red_logout">#E57373</color>
     <color name="red_dark">#D32F2F</color>
     <color name="shadow">#1A000000</color>
+    <!-- Status Text Colors -->
+    <color name="status_waiting_bg">#FFF3E0</color>
+    <color name="status_consulting_bg">#E8D5F2</color>
+    <color name="status_completed_bg">#E8F5E9</color>
+
 </resources>

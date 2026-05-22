@@ -125,7 +125,6 @@ class PatientQueueActivity : AppCompatActivity() {
         popupMenu.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.nav_account_settings -> {
-                    // Navigate to Profile Activity
                     val intent = Intent(this, ProfileActivity::class.java)
                     startActivity(intent)
                     true
@@ -172,7 +171,7 @@ class PatientQueueActivity : AppCompatActivity() {
                             val patientName = "$firstName $lastName".trim()
                             if (patientName.isEmpty()) continue
 
-                            val shortId = if (patientId.length > 8) {
+                            val shortId = if (patientId.isNotEmpty() && patientId.length > 8) {
                                 patientId.substring(0, 8) + "..."
                             } else {
                                 patientId

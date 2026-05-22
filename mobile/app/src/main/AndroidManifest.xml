@@ -20,16 +20,29 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
 
+        <!-- Landing Activity - LAUNCHER -->
+        <activity
+            android:name=".activities.LandingActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Patient Waiting Form Activity -->
+        <activity
+            android:name=".activities.PatientWaitingFormActivity"
+            android:exported="false" />
+
         <activity
             android:name=".activities.ProfileActivity"
             android:parentActivityName=".activities.PatientQueueActivity" />
 
-        <!-- Patient Queue Activity -->
         <activity
             android:name=".activities.PatientQueueActivity"
             android:exported="false" />
 
-        <!-- Dashboard Activity -->
         <activity
             android:name=".DashboardActivity"
             android:exported="false" />
@@ -38,15 +51,9 @@
             android:name=".RegisterActivity"
             android:exported="false" />
 
-
         <activity
             android:name=".MainActivity"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:exported="false" />
 
     </application>
 

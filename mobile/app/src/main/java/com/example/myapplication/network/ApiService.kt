@@ -51,4 +51,11 @@ interface ApiService {
     @POST("/api/auth/logout-all")
     fun logoutAllDevices(): Call<LogoutAllDevicesResponse>
 
+    @POST("/api/patient/register-queue")
+    fun registerToQueue(@Body request: PatientRegistrationRequest): Call<PatientEntity>
+
+    @GET("/api/patient/queue/all")
+    fun getAllPatients(): Call<PatientQueueResponse>
+
+
 }
