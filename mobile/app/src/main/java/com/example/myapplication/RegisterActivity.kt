@@ -4,17 +4,16 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.example.myapplication.models.LoginResponse
 import com.example.myapplication.models.RegisterRequest
+import com.example.myapplication.models.RegisterResponse
 import com.example.myapplication.network.RetrofitClient
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import retrofit2.Call
 import retrofit2.Callback
@@ -36,42 +35,42 @@ class RegisterActivity : AppCompatActivity() {
         val etFirstName = findViewById<TextInputEditText>(R.id.etFirstName)
         val etLastName = findViewById<TextInputEditText>(R.id.etLastName)
         val etEmail = findViewById<TextInputEditText>(R.id.etEmail)
-        val etRole = findViewById<AutoCompleteTextView>(R.id.etRole)
         val etPassword = findViewById<TextInputEditText>(R.id.etPassword)
         val etConfirmPassword = findViewById<TextInputEditText>(R.id.etConfirmPassword)
+        val etRole = findViewById<AutoCompleteTextView>(R.id.etRole)
 
-        // Populate role dropdown
-        val roles = listOf("STAFF", "DOCTOR", "ADMIN")
-        val roleAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, roles)
-        etRole.setAdapter(roleAdapter)
+        // Setup Role Spinner
+        val roles = arrayOf("Doctor", "Nurse", "Staff Member")
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, roles)
+        etRole.setAdapter(adapter)
+        etRole.setText(roles[0], false)
 
         findViewById<TextView>(R.id.tvLogin).setOnClickListener {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
         }
 
-        findViewById<MaterialButton>(R.id.btnSignUp).setOnClickListener {
+        findViewById<Button>(R.id.btnSignUp).setOnClickListener {
             val firstName = etFirstName.text.toString().trim()
             val lastName = etLastName.text.toString().trim()
             val email = etEmail.text.toString().trim()
-            val role = etRole.text.toString().trim().uppercase()
             val password = etPassword.text.toString().trim()
             val confirmPassword = etConfirmPassword.text.toString().trim()
+            val role = etRole.text.toString().trim()
 
-            when {
-                firstName.isEmpty() || lastName.isEmpty() || email.isEmpty()
-                        || role.isEmpty() || password.isEmpty() || confirmPassword.isEmpty() -> {
-                    Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                password != confirmPassword -> {
-                    Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-                password.length < 8 -> {
-                    Toast.makeText(this, "Password must be at least 8 characters", Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
+            if (firstName.isEmpty() || lastName.isEmpty() || email.isEmpty() || password.isEmpty()) {
+                Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (password != confirmPassword) {
+                Toast.makeText(this, "Passwords do not match", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            if (password.length < 6) {
+                Toast.makeText(this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
             }
 
             performRegistration(firstName, lastName, email, password, role)
@@ -79,49 +78,39 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun performRegistration(firstName: String, lastName: String, email: String, password: String, role: String) {
-        val registerRequest = RegisterRequest(firstName, lastName, email, password, role)
+        val mappedRole = when (role.lowercase()) {
+            "doctor" -> "DOCTOR"
+            "nurse" -> "NURSE"
+            else -> "STAFF"
+        }
 
-        RetrofitClient.instance.register(registerRequest).enqueue(object : Callback<LoginResponse> {
-            override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
+        val registerRequest = RegisterRequest(
+            firstName = firstName,
+            lastName = lastName,
+            email = email,
+            password = password,
+            role = mappedRole
+        )
+
+        RetrofitClient.instance.register(registerRequest).enqueue(object : Callback<RegisterResponse> {
+            override fun onResponse(call: Call<RegisterResponse>, response: Response<RegisterResponse>) {
                 if (response.isSuccessful) {
                     val registerResponse = response.body()
                     if (registerResponse?.success == true) {
-                        // Check if the message contains verification info
-                        val message = registerResponse.message ?: "Registration Successful!"
-
-                        if (message.contains("verification email") || message.contains("verify")) {
-                            // Show verification dialog
-                            showVerificationDialog(email, message)
-                        } else {
-                            // Show success and go to login
-                            Toast.makeText(this@RegisterActivity, message, Toast.LENGTH_LONG).show()
-                            startActivity(Intent(this@RegisterActivity, MainActivity::class.java))
-                            finish()
-                        }
+                        Toast.makeText(this@RegisterActivity, "Registration Successful! Please login.", Toast.LENGTH_LONG).show()
+                        startActivity(Intent(this@RegisterActivity, MainActivity::class.java))
+                        finish()
                     } else {
-                        val errorMsg = registerResponse?.message ?: "Registration failed"
-                        Toast.makeText(this@RegisterActivity, errorMsg, Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@RegisterActivity, registerResponse?.message ?: "Registration failed", Toast.LENGTH_LONG).show()
                     }
                 } else {
                     Toast.makeText(this@RegisterActivity, "Server Error: ${response.code()}", Toast.LENGTH_SHORT).show()
                 }
             }
 
-            override fun onFailure(call: Call<LoginResponse>, t: Throwable) {
+            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
                 Toast.makeText(this@RegisterActivity, "Network Error: ${t.message}", Toast.LENGTH_SHORT).show()
             }
         })
-    }
-
-    private fun showVerificationDialog(email: String, message: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Verify Your Email")
-            .setMessage("$message\n\nWe've sent a verification link to:\n\n$email\n\nPlease check your email inbox (and spam folder) and click the verification link to activate your account.")
-            .setPositiveButton("OK") { _, _ ->
-                startActivity(Intent(this, MainActivity::class.java))
-                finish()
-            }
-            .setCancelable(false)
-            .show()
     }
 }

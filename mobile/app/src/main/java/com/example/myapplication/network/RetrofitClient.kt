@@ -1,5 +1,6 @@
 package com.example.myapplication.network
 
+import com.example.myapplication.TokenManager
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -11,14 +12,12 @@ object RetrofitClient {
     // FOR EMULATOR - your computer's localhost
     private const val BASE_URL = "http://10.0.2.2:8080/"
 
-    // FOR REAL DEVICE - use your computer's IP address
-    // private const val BASE_URL = "http://192.168.1.x:8080/"
-
     private val loggingInterceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
 
-    private val client = OkHttpClient.Builder()
+    // Client without auth (for login/register)
+    private val clientWithoutAuth = OkHttpClient.Builder()
         .addInterceptor(loggingInterceptor)
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -27,10 +26,42 @@ object RetrofitClient {
     val instance: ApiService by lazy {
         val retrofit = Retrofit.Builder()
             .baseUrl(BASE_URL)
+            .client(clientWithoutAuth)
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+        retrofit.create(ApiService::class.java)
+    }
+
+    // Get authenticated client with token
+    fun getAuthenticatedClient(tokenManager: TokenManager): OkHttpClient {
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val original = chain.request()
+                val requestBuilder = original.newBuilder()
+
+                // Add token header
+                val token = tokenManager.getToken()
+                if (!token.isNullOrEmpty()) {
+                    requestBuilder.header("Authorization", "Bearer $token")
+                }
+
+                requestBuilder.header("Content-Type", "application/json")
+                chain.proceed(requestBuilder.build())
+            }
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    // Get authenticated API service
+    fun getAuthenticatedApi(tokenManager: TokenManager): ApiService {
+        val client = getAuthenticatedClient(tokenManager)
+        val retrofit = Retrofit.Builder()
+            .baseUrl(BASE_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-
-        retrofit.create(ApiService::class.java)
+        return retrofit.create(ApiService::class.java)
     }
 }

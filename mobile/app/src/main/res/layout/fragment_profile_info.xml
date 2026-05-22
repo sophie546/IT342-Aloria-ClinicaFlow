@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F0EEFA"
+    android:paddingStart="16dp"
+    android:paddingEnd="16dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="24dp"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <!-- Main Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="16dp"
+            app:cardElevation="3dp"
+            app:cardBackgroundColor="#FFFFFF">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <!-- Header Row: Title + Edit Button -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="20dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Personal&#10;Information"
+                        android:textSize="20sp"
+                        android:textStyle="bold"
+                        android:textColor="#190051"
+                        android:lineSpacingMultiplier="1.1" />
+
+                    <Button
+                        android:id="@+id/btnEditProfile"
+                        android:layout_width="wrap_content"
+                        android:layout_height="40dp"
+                        android:text="Edit Profile"
+                        android:textSize="13sp"
+                        android:textColor="#FFFFFF"
+                        android:paddingStart="18dp"
+                        android:paddingEnd="18dp"
+                        android:backgroundTint="#190051"
+                        app:cornerRadius="20dp" />
+
+                </LinearLayout>
+
+                <!-- Inner Card: Avatar + Details -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="1dp"
+                    app:cardBackgroundColor="#FFFFFF"
+                    app:strokeColor="#f3f4f6"
+                    app:strokeWidth="1dp"
+                    android:layout_marginBottom="20dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <!-- Avatar Row -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:layout_marginBottom="16dp">
+
+                            <!-- Avatar Circle -->
+                            <TextView
+                                android:id="@+id/tvAvatarInitials"
+                                android:layout_width="52dp"
+                                android:layout_height="52dp"
+                                android:gravity="center"
+                                android:text="MC"
+                                android:textSize="18sp"
+                                android:textStyle="bold"
+                                android:textColor="#FFFFFF"
+                                android:layout_marginEnd="12dp"
+                                android:background="@drawable/circle_avatar_bg" />
+
+                            <!-- Name + Role + Badge -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/tvFullName"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Dr. Maria Cruz"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold"
+                                    android:textColor="#190051" />
+
+                                <LinearLayout
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:gravity="center_vertical"
+                                    android:layout_marginTop="4dp">
+
+                                    <TextView
+                                        android:id="@+id/tvRole"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Senior Physician"
+                                        android:textSize="12sp"
+                                        android:textColor="#6b7280"
+                                        android:layout_marginEnd="6dp" />
+
+                                    <TextView
+                                        android:id="@+id/tvStatusBadge"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:text="Busy"
+                                        android:textSize="10sp"
+                                        android:textColor="#F97316"
+                                        android:background="@drawable/bg_badge_busy"
+                                        android:paddingStart="8dp"
+                                        android:paddingEnd="8dp"
+                                        android:paddingTop="2dp"
+                                        android:paddingBottom="2dp" />
+
+                                </LinearLayout>
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                        <!-- Details Grid: Age, Email, Gender, Phone -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:weightSum="2">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Age"
+                                    android:textSize="11sp"
+                                    android:textColor="#9ca3af"
+                                    android:layout_marginBottom="2dp" />
+
+                                <TextView
+                                    android:id="@+id/tvAge"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="45 Years"
+                                    android:textSize="13sp"
+                                    android:textColor="#190051"
+                                    android:layout_marginBottom="14dp" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Gender"
+                                    android:textSize="11sp"
+                                    android:textColor="#9ca3af"
+                                    android:layout_marginBottom="2dp" />
+
+                                <TextView
+                                    android:id="@+id/tvGender"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Female"
+                                    android:textSize="13sp"
+                                    android:textColor="#190051" />
+
+                            </LinearLayout>
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Email"
+                                    android:textSize="11sp"
+                                    android:textColor="#9ca3af"
+                                    android:layout_marginBottom="2dp" />
+
+                                <TextView
+                                    android:id="@+id/tvEmail"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="sophie.aloria@gmail.com"
+                                    android:textSize="13sp"
+                                    android:textColor="#190051"
+                                    android:layout_marginBottom="14dp"
+                                    android:ellipsize="end"
+                                    android:maxLines="1" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="Phone"
+                                    android:textSize="11sp"
+                                    android:textColor="#9ca3af"
+                                    android:layout_marginBottom="2dp" />
+
+                                <TextView
+                                    android:id="@+id/tvPhone"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="09750768513"
+                                    android:textSize="13sp"
+                                    android:textColor="#190051" />
+
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Divider -->
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#f3f4f6"
+                    android:layout_marginBottom="20dp" />
+
+                <!-- Professional Info + Availability Row -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:weightSum="2">
+
+                    <!-- Professional Information -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginEnd="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Professional Information"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="#190051"
+                            android:layout_marginBottom="14dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Specialization"
+                            android:textSize="11sp"
+                            android:textColor="#9ca3af"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tvSpecialization"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Dermatology"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#190051"
+                            android:layout_marginBottom="14dp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Department"
+                            android:textSize="11sp"
+                            android:textColor="#9ca3af"
+                            android:layout_marginBottom="4dp" />
+
+                        <TextView
+                            android:id="@+id/tvDepartment"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Physician"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#190051" />
+
+                    </LinearLayout>
+
+                    <!-- Availability Status - DISPLAY ONLY (NOT CLICKABLE) -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:layout_marginStart="12dp">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Availability Status"
+                            android:textSize="14sp"
+                            android:textStyle="bold"
+                            android:textColor="#190051"
+                            android:layout_marginBottom="14dp" />
+
+                        <!-- Status Display Card -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical"
+                            android:background="@drawable/bg_status_display"
+                            android:paddingStart="14dp"
+                            android:paddingEnd="14dp"
+                            android:paddingTop="10dp"
+                            android:paddingBottom="10dp">
+
+                            <!-- Status Dot -->
+                            <View
+                                android:id="@+id/vStatusDot"
+                                android:layout_width="10dp"
+                                android:layout_height="10dp"
+                                android:background="@drawable/circle_green"
+                                android:layout_marginEnd="10dp" />
+
+                            <!-- Status Text -->
+                            <TextView
+                                android:id="@+id/tvCurrentAvailability"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Available"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                android:textColor="#22c55e" />
+
+                            <!-- Status Icon -->
+                            <ImageView
+                                android:layout_width="16dp"
+                                android:layout_height="16dp"
+                                android:src="@drawable/ic_check"
+                                android:alpha="0.6" />
+
+                        </LinearLayout>
+
+                        <!-- Last updated info -->
+                        <TextView
+                            android:id="@+id/tvLastUpdated"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Last updated: Today"
+                            android:textSize="10sp"
+                            android:textColor="#9ca3af"
+                            android:layout_marginTop="10dp" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </LinearLayout>
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+</ScrollView>

@@ -1,4 +1,8 @@
 package com.example.myapplication.models
 
-// Same structure as LoginResponse
-typealias RegisterResponse = LoginResponse
+data class RegisterResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val token: String? = null,
+    val user: User? = null
+)
