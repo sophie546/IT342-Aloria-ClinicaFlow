@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import Sidebar from '../../../shared/components/Sidebar';
+import AdminSidebar from '../components/AdminSidebar';
 import { staffService } from '../services/staffService';
 import API from '../../../shared/services/api';
 
@@ -39,7 +39,7 @@ const statusConfig = {
   Available: { label: 'Available', color: C.green },
   Busy: { label: 'Busy', color: C.orange },
   'Off Duty': { label: 'Off Duty', color: C.red },
-   Offline: { label: 'Offline', color: C.red },
+  Offline: { label: 'Offline', color: C.red },
 };
 
 /* ── Icons ── */
@@ -396,7 +396,7 @@ function StaffRow({ staff, index, onEdit, onDelete }) {
 }
 
 /* ── MAIN COMPONENT ── */
-export default function MedicalStaff() {
+export default function StaffManagement() {
   const [staff, setStaff] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -571,7 +571,7 @@ export default function MedicalStaff() {
   if (loading) {
     return (
       <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
-        <Sidebar />
+        <AdminSidebar />
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
           <div>Loading staff data...</div>
         </div>
@@ -581,7 +581,7 @@ export default function MedicalStaff() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #ffffff 0%, #C0B4DC 50%, #DFDCE6 100%)' }}>
-      <Sidebar />
+      <AdminSidebar />
       <div style={{ flex: 1, overflow: 'auto' }}>
         {/* Top Bar */}
         <div style={{

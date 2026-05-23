@@ -53,6 +53,19 @@ export const queueService = {
     }
   },
 
+  // ✅ ADD THIS NEW FUNCTION - PERMANENTLY DELETE PATIENT
+  permanentlyDeletePatient: async (patientId) => {
+    try {
+      // This actually deletes the patient from the database
+      const response = await API.delete(`/api/patient/${patientId}/permanent`);
+      console.log('✅ Patient permanently deleted:', response.data);
+      return response.data;
+    } catch (error) {
+      console.error('❌ Error permanently deleting patient:', error);
+      throw error;
+    }
+  },
+
   // Add patient to queue
   addPatient: async (patientData) => {
     try {

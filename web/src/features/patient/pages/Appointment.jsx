@@ -208,8 +208,8 @@ export default function Appointment() {
   // Fetch available doctors
   const fetchAvailableDoctors = async () => {
     try {
-      const allStaff = await staffService.getAllStaff();
-      const doctors = allStaff.filter(staff => {
+        const allStaff = await staffService.getAllStaff();
+        const doctors = allStaff.filter(staff => {
         const isDoctor = staff.role?.toLowerCase() === 'doctor';
         const isAvailable = staff.availability?.toLowerCase() === 'available';
         return isDoctor && isAvailable;

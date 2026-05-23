@@ -118,50 +118,79 @@ function Login() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormSubmitted(true);
-    setLoginError('');
-    setLoginSuccess(false);
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setFormSubmitted(true);
+  setLoginError('');
+  setLoginSuccess(false);
+  
+  setTouched({ email: true, password: true });
+  
+  if (validateForm()) {
+    setIsLoading(true);
     
-    setTouched({ email: true, password: true });
-    
-    if (validateForm()) {
-      setIsLoading(true);
+    try {
+      const response = await authService.login({
+        email: email,
+        password: password
+      });
       
-      try {
-        const response = await authService.login({
-          email: email,
-          password: password
-        });
+      console.log('🔍 Login Response:', response);
+      
+      if (response.success) {
+        // Extract user role from response
+        const userRole = response.user?.role || response.role;
+        console.log('🔍 User Role:', userRole);
         
-        if (response.success) {
-          setLoginSuccess(true);
-          setSuccessMessage('Login successful! Redirecting to dashboard...');
-          setShowSuccessModal(true);
-          
-          setTimeout(() => {
-            setShowSuccessModal(false);
-            goTo('/patient-queue');
-          }, 2000);
-        } else {
-          setLoginError(response.message || 'Invalid email or password');
+        // Save user data to localStorage
+        if (response.user) {
+          localStorage.setItem('user', JSON.stringify(response.user));
         }
-      } catch (error) {
-        console.error('Login error:', error);
+        if (response.token) {
+          localStorage.setItem('token', response.token);
+        }
+        if (userRole) {
+          localStorage.setItem('userRole', userRole);
+        }
         
-        if (error.message === 'Network Error') {
-          setLoginError('Cannot connect to server. Please make sure the backend is running.');
-        } else if (error.response) {
-          setLoginError(error.response.data?.message || 'Server error occurred');
-        } else {
-          setLoginError('An error occurred during login. Please try again.');
+        setLoginSuccess(true);
+        setSuccessMessage('Login successful! Redirecting...');
+        setShowSuccessModal(true);
+        
+        // Role-based redirect
+        let redirectPath = '/patient-queue'; // default for staff
+        if (userRole === 'ADMIN') {
+          redirectPath = '/admin/staff';  // ← Changed from '/admin' to '/admin/staff'
+        } else if (userRole === 'PATIENT') {
+          redirectPath = '/patient-waiting';
+        } else if (userRole === 'DOCTOR' || userRole === 'NURSE') {
+          redirectPath = '/patient-queue';
         }
-      } finally {
-        setIsLoading(false);
+        
+        console.log('🔍 Redirecting to:', redirectPath);
+        
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          goTo(redirectPath);
+        }, 2000);
+      } else {
+        setLoginError(response.message || 'Invalid email or password');
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      if (error.message === 'Network Error') {
+        setLoginError('Cannot connect to server. Please make sure the backend is running.');
+      } else if (error.response) {
+        setLoginError(error.response.data?.message || 'Server error occurred');
+      } else {
+        setLoginError('An error occurred during login. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
     }
-  };
+  }
+};
 
   // Handle Google Login
   const handleGoogleLogin = () => {
