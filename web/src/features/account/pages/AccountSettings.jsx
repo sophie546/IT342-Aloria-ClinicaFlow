@@ -195,88 +195,111 @@ export default function AccountSettings() {
     }
   };
 
-  const handleSave = async () => {
-    try {
-      console.log('=== STARTING PROFILE SAVE ===');
-      console.log('availabilityStatus to save:', availabilityStatus);
-      
-      let photoUrl = user?.photo || null;
-      
-      // Upload photo if a new file was selected
-      if (photoFile) {
-        const uploadedUrl = await uploadPhoto();
-        if (uploadedUrl) {
-          photoUrl = uploadedUrl;
-          setPhotoPreview(photoUrl);
-        }
+ const handleSave = async () => {
+  try {
+    console.log('=== STARTING PROFILE SAVE ===');
+    console.log('availabilityStatus to save:', availabilityStatus);
+    
+    let photoUrl = user?.photo || null;
+    
+    // Upload photo if a new file was selected
+    if (photoFile) {
+      const uploadedUrl = await uploadPhoto();
+      if (uploadedUrl) {
+        photoUrl = uploadedUrl;
+        setPhotoPreview(photoUrl);
       }
-      
-      // 1. Update user_account with ALL fields
-      const userUpdateData = {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        email: form.email,
-        role: form.role,
-        gender: form.gender,
-        age: form.age ? parseInt(form.age) : null,
-        phone: form.phone || null,
-        specialization: form.specialization || null,
-        department: form.department || null,
-        availability: availabilityStatus,
-        photo: photoUrl
-      };
-      
-      console.log('Updating user_account:', userUpdateData);
-      await API.put(`/api/auth/user/${user?.accountID}`, userUpdateData);
-      
-      // 2. Update medical_staff if staffId exists
-      if (staffId) {
-        const staffUpdateData = {
-          fname: form.firstName,
-          lname: form.lastName,
-          role: form.role,
-          specialty: form.specialization,
-          email: form.email,
-          contactNo: form.phone,
-          availability: availabilityStatus,
-          photo: photoUrl
-        };
-        
-        console.log('Updating medical_staff:', staffUpdateData);
-        await API.put(`/api/medicalstaff/update/${staffId}`, staffUpdateData);
-      }
-      
-      // 3. Update localStorage
-      const updatedUser = {
-        ...user,
-        firstName: form.firstName,
-        lastName: form.lastName,
-        age: form.age,
-        gender: form.gender,
-        email: form.email,
-        phone: form.phone,
-        specialization: form.specialization,
-        department: form.department,
-        role: form.role,
-        availability: availabilityStatus,
-        photo: photoUrl
-      };
-      
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      setUser(updatedUser);
-      
-      // 4. Dispatch event to update sidebar
-      window.dispatchEvent(new CustomEvent('userUpdated', { detail: updatedUser }));
-      
-      setShowModal(false);
-      setShowPhotoMenu(false);
-      alert('Profile updated successfully!');
-      
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      alert('Failed to save profile: ' + (error.response?.data?.message || error.message));
     }
-  };
+    
+    // 1. Update user_account with ALL fields
+    const userUpdateData = {
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      role: form.role,
+      gender: form.gender,
+      age: form.age ? parseInt(form.age) : null,
+      phone: form.phone || null,
+      specialization: form.specialization || null,
+      department: form.department || null,
+      availability: availabilityStatus,
+      photo: photoUrl
+    };
+    
+    console.log('Updating user_account:', userUpdateData);
+    await API.put(`/api/auth/user/${user?.accountID}`, userUpdateData);
+    
+    // 2. Update medical_staff if staffId exists
+    if (staffId) {
+      const staffUpdateData = {
+        fname: form.firstName,
+        lname: form.lastName,
+        role: form.role,
+        specialty: form.specialization,
+        email: form.email,
+        contactNo: form.phone,
+        availability: availabilityStatus,
+        photo: photoUrl
+      };
+      
+      console.log('Updating medical_staff:', staffUpdateData);
+      await API.put(`/api/medicalstaff/update/${staffId}`, staffUpdateData);
+    }
+    
+    // 🔥 CRITICAL FIX: Fetch fresh user data from backend AFTER update
+    const freshResponse = await API.get(`/api/auth/user/${user?.accountID}`);
+    const freshUser = freshResponse.data;
+    
+    console.log('Fresh user data from backend:', freshUser);
+    
+    // 3. Update localStorage with FRESH data from backend (not just form data)
+    const updatedUser = {
+      ...user,
+      accountID: freshUser.accountID,
+      firstName: freshUser.firstName,
+      lastName: freshUser.lastName,
+      email: freshUser.email,
+      age: freshUser.age,
+      gender: freshUser.gender,
+      phone: freshUser.phone,
+      specialization: freshUser.specialization,
+      department: freshUser.department,
+      role: freshUser.role,
+      availability: freshUser.availability,
+      photo: freshUser.photo || photoUrl
+    };
+    
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+    setUser(updatedUser);
+    
+    // 4. Update form state with fresh data
+    setForm({
+      firstName: freshUser.firstName || '',
+      lastName: freshUser.lastName || '',
+      age: freshUser.age || '',
+      gender: freshUser.gender || 'Female',
+      email: freshUser.email || '',
+      phone: freshUser.phone || '',
+      specialization: freshUser.specialization || '',
+      department: freshUser.department || '',
+      role: freshUser.role || '',
+    });
+    
+    // 5. Update availability status
+    setAvailabilityStatus(freshUser.availability || 'Available');
+    
+    // 6. Dispatch event to update sidebar
+    window.dispatchEvent(new CustomEvent('userUpdated', { detail: updatedUser }));
+    
+    setShowModal(false);
+    setShowPhotoMenu(false);
+    alert('Profile updated successfully!');
+    
+  } catch (error) {
+    console.error('Error saving profile:', error);
+    alert('Failed to save profile: ' + (error.response?.data?.message || error.message));
+  }
+};
 
   /* ── Change Password ── */
   const handleChangePassword = async () => {
@@ -332,32 +355,48 @@ export default function AccountSettings() {
   }[availabilityStatus];
 
   // Load user data
-  useEffect(() => {
-    const loadUser = async () => {
-      const storedUser = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
+ // Load user data
+useEffect(() => {
+  const loadUser = async () => {
+    const storedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    
+    if (storedUser && token) {
+      const u = JSON.parse(storedUser);
       
-      if (storedUser && token) {
-        const u = JSON.parse(storedUser);
-        setUser(u);
-        setForm({
-          firstName:      u.firstName      || u.first_name    || '',
-          lastName:       u.lastName       || u.last_name     || '',
-          age:            u.age            || '',
-          gender:         u.gender         || 'Female',
-          email:          u.email          || '',
-          phone:          u.phone          || u.contactNo     || '',
-          specialization: u.specialization || u.specialty     || '',
-          department:     u.department     || '',
-          role:           u.role           || '',
+      // 🔥 Fetch fresh data from backend on page load
+      try {
+        const freshResponse = await API.get(`/api/auth/user/${u.accountID}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
-        setAvailabilityStatus(u.availability || 'Available');
-        if (u.photo) setPhotoPreview(u.photo);
+        
+        const freshUser = freshResponse.data;
+        
+        console.log('Fresh user data loaded:', freshUser);
+        
+        // Update state with fresh data
+        setUser(freshUser);
+        setForm({
+          firstName: freshUser.firstName || '',
+          lastName: freshUser.lastName || '',
+          age: freshUser.age || '',
+          gender: freshUser.gender || 'Female',
+          email: freshUser.email || '',
+          phone: freshUser.phone || '',
+          specialization: freshUser.specialization || '',
+          department: freshUser.department || '',
+          role: freshUser.role || '',
+        });
+        setAvailabilityStatus(freshUser.availability || 'Available');
+        if (freshUser.photo) setPhotoPreview(freshUser.photo);
+        
+        // Update localStorage with fresh data
+        localStorage.setItem('user', JSON.stringify(freshUser));
         
         // Fetch fresh staff data
-        if (u.email) {
+        if (freshUser.email) {
           try {
-            const response = await API.get(`/api/medicalstaff/user/by-email/${u.email}`, {
+            const response = await API.get(`/api/medicalstaff/user/by-email/${freshUser.email}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             if (response.data) {
@@ -367,19 +406,36 @@ export default function AccountSettings() {
               }
               if (response.data.photo) {
                 setPhotoPreview(response.data.photo);
-                u.photo = response.data.photo;
-                localStorage.setItem('user', JSON.stringify(u));
               }
             }
           } catch (error) {
             console.error('Error fetching staff data:', error);
           }
         }
+        
+      } catch (error) {
+        console.error('Error fetching fresh user data:', error);
+        // Fallback to stored data
+        setUser(u);
+        setForm({
+          firstName: u.firstName || u.first_name || '',
+          lastName: u.lastName || u.last_name || '',
+          age: u.age || '',
+          gender: u.gender || 'Female',
+          email: u.email || '',
+          phone: u.phone || u.contactNo || '',
+          specialization: u.specialization || u.specialty || '',
+          department: u.department || '',
+          role: u.role || '',
+        });
+        setAvailabilityStatus(u.availability || 'Available');
+        if (u.photo) setPhotoPreview(u.photo);
       }
-      setLoading(false);
-    };
-    loadUser();
-  }, []);
+    }
+    setLoading(false);
+  };
+  loadUser();
+}, []);
 
   const AvatarCircle = ({ size = 80, fontSize = 26, showEdit = false, onClick }) => (
     <div

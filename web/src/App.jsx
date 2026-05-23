@@ -12,6 +12,11 @@ import PatientWaitingForm from './features/patient/pages/PatientWaitingForm';
 import ProtectedRoute from './features/authentication/components/ProtectedRoute';
 import AccountSettings from './features/account/pages/AccountSettings';
 
+// Admin Pages
+import StaffManagement from './features/admin/pages/StaffManagement';
+import PatientManagement from './features/admin/pages/PatientManagement';
+import AdminMedicalHistory from './features/admin/pages/MedicalHistory';
+
 function App() {
   return (
     <Router>
@@ -52,6 +57,31 @@ function App() {
         <Route path="/medical-history" element={
           <ProtectedRoute>
             <MedicalHistory />
+          </ProtectedRoute>
+        } />
+
+        {/* ===== ADMIN ROUTES - No Dashboard, direct to pages ===== */}
+        <Route path="/admin" element={
+          <ProtectedRoute>
+            <Navigate to="/admin/staff" replace />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/staff" element={
+          <ProtectedRoute>
+            <StaffManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/patients" element={
+          <ProtectedRoute>
+            <PatientManagement />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/admin/history" element={
+          <ProtectedRoute>
+            <AdminMedicalHistory />
           </ProtectedRoute>
         } />
         

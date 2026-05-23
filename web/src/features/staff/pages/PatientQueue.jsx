@@ -610,22 +610,22 @@ const handleDelete = async () => {
   }
 
   try {
-    // This will now mark as 'completed' instead of deleting
-    await queueService.deletePatient(selectedRow?.id);
+    // Use permanent delete instead of marking as completed
+    await queueService.permanentlyDeletePatient(selectedRow?.id);
     
-    // Refresh the queue data (patient will disappear from queue because status is now 'completed')
+    // Refresh the queue data
     await fetchQueueData();
     
     setDeleteOpen(false);
-    alert('Patient removed from queue successfully');
+    alert('Patient permanently deleted from records');
   } catch (error) {
-    console.error('Error removing patient from queue:', error);
+    console.error('Error deleting patient:', error);
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       alert('Session expired. Please login again.');
       navigate('/login');
     } else {
-      alert('Failed to remove patient from queue');
+      alert('Failed to delete patient');
     }
   }
 };
