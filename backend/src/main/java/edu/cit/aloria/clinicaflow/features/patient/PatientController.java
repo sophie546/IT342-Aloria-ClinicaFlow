@@ -90,16 +90,32 @@ public class PatientController {
         return ResponseEntity.ok(response);
     }
     
-    // ENDPOINT FOR ACTIVE QUEUE (waiting + consulting only)
-    @GetMapping("/queue")
-    public ResponseEntity<?> getActiveQueue() {
+@GetMapping("/queue")
+public ResponseEntity<?> getActiveQueue() {
+    try {
+        // Return ALL patients (waiting, consulting, completed)
+        List<PatientEntity> allPatients = patientService.getAllPatients();
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("data", allPatients);
+        System.out.println("📊 Returning " + allPatients.size() + " total patients");
+        return ResponseEntity.ok(response);
+    } catch (Exception e) {
+        e.printStackTrace();
+        return ResponseEntity.badRequest().body(Map.of("success", false, "message", e.getMessage()));
+    }
+}
+
+        // ENDPOINT FOR FULL QUEUE (all patients)
+    @GetMapping("/queue/all")
+    public ResponseEntity<?> getFullQueue() {
         try {
-            // Only return patients with status 'waiting' or 'consulting'
-            List<PatientEntity> activeQueue = patientService.getCurrentQueue();
+            // Return ALL patients - waiting, consulting, and completed
+            List<PatientEntity> allPatients = patientService.getAllPatients();
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
-            response.put("data", activeQueue);
-            System.out.println("📊 Returning " + activeQueue.size() + " active queue patients to frontend");
+            response.put("data", allPatients);
+            System.out.println("📊 Returning " + allPatients.size() + " total patients");
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             e.printStackTrace();
@@ -148,29 +164,28 @@ public class PatientController {
         }
     }
 
-    // DELETE from queue (mark as completed, not actual delete)
-    @DeleteMapping("/{id}")
-    public ResponseEntity<?> removeFromQueue(@PathVariable String id) {
-        try {
-            System.out.println("🗑️ Removing patient from queue (marking as completed): " + id);
-            
-            // This should mark as completed, not delete
-            PatientEntity updatedPatient = patientService.updatePatientStatus(id, "completed", null);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("success", true);
-            response.put("message", "Patient removed from queue successfully");
-            response.put("data", updatedPatient);
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
-        }
+// ACTUAL DELETE (removes from database)
+@DeleteMapping("/{id}")
+public ResponseEntity<?> deletePatient(@PathVariable String id) {
+    try {
+        System.out.println("🗑️ PERMANENTLY deleting patient with ID: " + id);
+        
+        patientService.deletePatient(id);  // This actually deletes from DB
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Patient permanently deleted from records");
+        response.put("patientId", id);
+        
+        return ResponseEntity.ok(response);
+    } catch (Exception e) {
+        e.printStackTrace();
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("message", e.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
     }
+}
 
     // UPDATE patient status only (PATCH)
     @PatchMapping("/{id}/status")
