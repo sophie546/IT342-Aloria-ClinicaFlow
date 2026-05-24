@@ -22,7 +22,7 @@
 
         <!-- Landing Activity - LAUNCHER -->
         <activity
-            android:name=".activities.LandingActivity"
+            android:name=".features.queue.LandingActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -32,27 +32,27 @@
 
         <!-- Patient Waiting Form Activity -->
         <activity
-            android:name=".activities.PatientWaitingFormActivity"
+            android:name=".features.patient.PatientWaitingFormActivity"
             android:exported="false" />
 
         <activity
-            android:name=".activities.ProfileActivity"
-            android:parentActivityName=".activities.PatientQueueActivity" />
+            android:name=".features.profile.ProfileActivity"
+            android:parentActivityName=".features.queue.PatientQueueActivity" />
 
         <activity
-            android:name=".activities.PatientQueueActivity"
+            android:name=".features.queue.PatientQueueActivity"
             android:exported="false" />
 
         <activity
-            android:name=".DashboardActivity"
+            android:name=".features.profile.DashboardActivity"
             android:exported="false" />
 
         <activity
-            android:name=".RegisterActivity"
+            android:name=".features.authentication.RegisterActivity"
             android:exported="false" />
 
         <activity
-            android:name=".MainActivity"
+            android:name=".features.authentication.MainActivity"
             android:exported="false" />
 
     </application>
